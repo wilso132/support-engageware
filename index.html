@@ -422,7 +422,7 @@
 </main>
 </div>
 
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1900</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1930</div>
 
 <script>
 // ── i18n ──────────────────────────────────────────────────────────────────────
@@ -745,16 +745,24 @@ async function loadCustomers() {
     allCustomers = JSON.parse(cached); return;
   }
   try {
-    let start = 0, isDone = false;
+    // Fetch all field contexts first, then options per context
+    const ctxData = await jiraFetch('/rest/api/3/field/customfield_10100/context', { maxResults: 50 });
+    const contexts = ctxData.values || [];
     allCustomers = [];
-    while (!isDone) {
-      const data = await jiraFetch('/rest/api/3/field/customfield_10100/context/defaultContextId/option', { maxResults:100, startAt:start });
-      const vals = data.values || [];
-      vals.forEach(v => { if (v.value) allCustomers.push(v.value); });
-      isDone = data.isLast || vals.length < 100;
-      start += vals.length;
-      if (!vals.length) break;
+    for (const ctx of contexts) {
+      let startAt = 0;
+      while (true) {
+        const opts = await jiraFetch(
+          `/rest/api/3/field/customfield_10100/context/${ctx.id}/option`,
+          { maxResults: 100, startAt }
+        );
+        const vals = opts.values || [];
+        vals.forEach(v => { if (v.value) allCustomers.push(v.value); });
+        if (opts.isLast || !vals.length) break;
+        startAt += vals.length;
+      }
     }
+    allCustomers = [...new Set(allCustomers)].sort();
     localStorage.setItem('sup_cache_customers', JSON.stringify(allCustomers));
     localStorage.setItem('sup_cache_customers_ts', Date.now().toString());
   } catch(e) { console.warn('[Support] Could not load customers:', e); }
@@ -1678,6 +1686,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1900</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1930</div>
 </body>
 </html>
