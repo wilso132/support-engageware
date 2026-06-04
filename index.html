@@ -1351,12 +1351,12 @@ function updateProductFilterBar(tab) {
   bar.classList.add('visible');
   let html = `<span class="prod-filter-label">${t('filter_by_product')}</span>`;
   html += `<button class="prod-filter-btn${activeProductFilter===''?' active':''}" data-product="" onclick="setProductFilter('')">${t('all_products')}</button>`;
-  Array.from(products).sort().forEach(p => {
+  Array.from(projects).sort().forEach(p => {
     html += `<button class="prod-filter-btn${activeProductFilter===p?' active':''}" data-product="${escHtml(p)}" onclick="setProductFilter('${escHtml(p).replace(/'/g,"\\'")}')">${escHtml(p)}</button>`;
   });
   bar.innerHTML = html;
   const sep = document.getElementById('filter-sep');
-  if (sep) sep.style.display = products.size ? 'block' : 'none';
+  if (sep) sep.style.display = projects.size ? 'block' : 'none';
 }
 
 function updatePriorityFilterBar(tab) {
@@ -1377,6 +1377,7 @@ function updatePriorityFilterBar(tab) {
   sorted.forEach(p => {
     html += `<button class="prod-filter-btn${activePriorityFilter===p?' active':''}" onclick="setPriorityFilter('${p.replace(/'/g,"\\'")}')">${escHtml(p)}</button>`;
   });
+  html += `<button class="prod-filter-btn${activePriorityFilter==='__none__'?' active':''}" onclick="setPriorityFilter('__none__')">No Priority</button>`;
   bar.innerHTML = html;
 }
 
@@ -1445,14 +1446,17 @@ function renderTab(tab) {
 
   // Priority filter
   if (activePriorityFilter) {
-    const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
-    if (!BUCKET_TABS.includes(tab)) {
-      // Flexible match: priority name contains filter string or vice versa (case-insensitive)
-      const pf = activePriorityFilter.toLowerCase();
-      issues = issues.filter(i => {
-        const pn = getPriority(i).toLowerCase();
-        return pn === pf || pn.includes(pf) || pf.includes(pn);
-      });
+    if (activePriorityFilter === '__none__') {
+      issues = issues.filter(i => !getPriority(i));
+    } else {
+      const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
+      if (!BUCKET_TABS.includes(tab)) {
+        const pf = activePriorityFilter.toLowerCase();
+        issues = issues.filter(i => {
+          const pn = getPriority(i).toLowerCase();
+          return pn && (pn === pf || pn.includes(pf) || pf.includes(pn));
+        });
+      }
     }
   }
 
@@ -1531,13 +1535,15 @@ function renderTab(tab) {
 
 // Renders Work Queue with section dividers between priority/tier groups
 function renderQueueRows(issues, showCustomerCol) {
+  const hasPrio = i => !!getPriority(i);
   const SECTIONS = [
     { key: 'p1',    label: '🔴 P1 — Critical', filter: isP1 },
     { key: 'p2',    label: '🟠 P2 — High Priority', filter: i => isP2(i) && !isP1(i) },
-    { key: 't1icp', label: 'Tier 1 ICP', filter: i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() === 'yes' },
-    { key: 't1',    label: 'Tier 1', filter: i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() !== 'yes' },
-    { key: 't2',    label: 'Tier 2', filter: i => !isP1(i) && !isP2(i) && getTier(i).includes('2') },
-    { key: 't34',   label: 'Tier 3 / 4', filter: i => !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2') },
+    { key: 't1icp', label: 'Tier 1 ICP', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() === 'yes' },
+    { key: 't1',    label: 'Tier 1', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() !== 'yes' },
+    { key: 't2',    label: 'Tier 2', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && getTier(i).includes('2') },
+    { key: 't34',   label: 'Tier 3 / 4', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2') },
+    { key: 'none',  label: '— No Priority', filter: i => !hasPrio(i) },
   ];
   const colSpan = 11; // 10 base cols + customer always shown
   return SECTIONS.map(section => {
@@ -1645,14 +1651,17 @@ function copyTable(btn, tab) {
   if (showEngClosed) issues = issues.filter(hasEngOrOpsClosedLink);
   if (activeProductFilter) issues = issues.filter(i => i.fields?.project?.key === activeProductFilter);
   if (activePriorityFilter) {
-    const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
-    if (!BUCKET_TABS.includes(tab)) {
-      // Flexible match: priority name contains filter string or vice versa (case-insensitive)
-      const pf = activePriorityFilter.toLowerCase();
-      issues = issues.filter(i => {
-        const pn = getPriority(i).toLowerCase();
-        return pn === pf || pn.includes(pf) || pf.includes(pn);
-      });
+    if (activePriorityFilter === '__none__') {
+      issues = issues.filter(i => !getPriority(i));
+    } else {
+      const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
+      if (!BUCKET_TABS.includes(tab)) {
+        const pf = activePriorityFilter.toLowerCase();
+        issues = issues.filter(i => {
+          const pn = getPriority(i).toLowerCase();
+          return pn && (pn === pf || pn.includes(pf) || pf.includes(pn));
+        });
+      }
     }
   }
   if (!issues.length) return;
@@ -1977,6 +1986,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2342</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2343</div>
 </body>
 </html>
