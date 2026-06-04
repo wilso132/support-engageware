@@ -339,6 +339,10 @@
 
   <!-- Stat tiles -->
   <div class="stats-row" id="stats-row" style="display:none">
+    <div class="stat-card clickable-stat" onclick="switchTab('queue')" title="Work Queue">
+      <div class="stat-label">📋 Queue</div>
+      <div class="stat-value" id="stat-queue">…</div>
+    </div>
     <div class="stat-card clickable-stat" onclick="switchTab('p1')" title="P1 Open">
       <div class="stat-label" data-i18n="stat_p1">P1 Open</div>
       <div class="stat-value danger" id="stat-p1">…</div>
@@ -375,14 +379,15 @@
 
   <!-- Bucket tabs -->
   <div class="bucket-tabs" id="bucket-tabs" style="display:none">
-    <button class="tab-btn active" id="tab-p1" onclick="switchTab('p1')">🔴 P1 <span class="count" id="cnt-p1">…</span></button>
+    <button class="tab-btn active" id="tab-queue" onclick="switchTab('queue')">📋 Work Queue <span class="count" id="cnt-queue">…</span></button>
+    <button class="tab-btn" id="tab-p1" onclick="switchTab('p1')">🔴 P1 <span class="count" id="cnt-p1">…</span></button>
     <button class="tab-btn" id="tab-p2" onclick="switchTab('p2')">🟠 P2 <span class="count" id="cnt-p2">…</span></button>
-    <button class="tab-btn" id="tab-t1icp" onclick="switchTab('t1icp')" data-i18n-tab="tab_t1icp">T1 ICP <span class="count" id="cnt-t1icp">…</span></button>
-    <button class="tab-btn" id="tab-t1" onclick="switchTab('t1')" data-i18n-tab="tab_t1">Tier 1 <span class="count" id="cnt-t1">…</span></button>
-    <button class="tab-btn" id="tab-t2" onclick="switchTab('t2')" data-i18n-tab="tab_t2">Tier 2 <span class="count" id="cnt-t2">…</span></button>
-    <button class="tab-btn" id="tab-t34" onclick="switchTab('t34')" data-i18n-tab="tab_t34">Tier 3/4 <span class="count" id="cnt-t34">…</span></button>
-    <button class="tab-btn" id="tab-aging" onclick="switchTab('aging')" data-i18n-tab="tab_aging">⚠ Aging <span class="count" id="cnt-aging">…</span></button>
-    <button class="tab-btn" id="tab-resolved" onclick="switchTab('resolved')" data-i18n-tab="tab_resolved">✓ Resolved <span class="count" id="cnt-resolved">…</span></button>
+    <button class="tab-btn" id="tab-t1icp" onclick="switchTab('t1icp')">T1 ICP <span class="count" id="cnt-t1icp">…</span></button>
+    <button class="tab-btn" id="tab-t1" onclick="switchTab('t1')">Tier 1 <span class="count" id="cnt-t1">…</span></button>
+    <button class="tab-btn" id="tab-t2" onclick="switchTab('t2')">Tier 2 <span class="count" id="cnt-t2">…</span></button>
+    <button class="tab-btn" id="tab-t34" onclick="switchTab('t34')">Tier 3/4 <span class="count" id="cnt-t34">…</span></button>
+    <button class="tab-btn" id="tab-aging" onclick="switchTab('aging')">⚠ Aging <span class="count" id="cnt-aging">…</span></button>
+    <button class="tab-btn" id="tab-resolved" onclick="switchTab('resolved')">✓ Resolved <span class="count" id="cnt-resolved">…</span></button>
   </div>
 
   <!-- Day pickers -->
@@ -422,7 +427,7 @@
 </main>
 </div>
 
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1930</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1945</div>
 
 <script>
 // ── i18n ──────────────────────────────────────────────────────────────────────
@@ -569,7 +574,7 @@ let allOrgs          = [];
 let selectedCustomer = null;
 let selectedOrg      = null;
 let activePreset     = '';
-let currentTab       = 'p1';
+let currentTab       = 'queue';
 let resolvedDays     = parseInt(localStorage.getItem('sup_resolved_days') || '30');
 let agingDays        = parseInt(localStorage.getItem('sup_aging_days') || '30');
 let activeProductFilter  = sessionStorage.getItem('sup_product_filter')  || '';
@@ -923,20 +928,29 @@ function splitIntoBuckets(issues) {
   const done   = issues.filter(i => i.fields.status && i.fields.status.statusCategory && i.fields.status.statusCategory.key === 'done');
   const support = open.filter(i => i.fields.project && SUPPORT_PROJECTS.includes(i.fields.project.key));
 
-  issueCache['p1']       = sortByWeightedAge(support.filter(isP1));
-  issueCache['p2']       = sortByWeightedAge(support.filter(i => isP2(i) && !isP1(i)));
-  issueCache['t1icp']    = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() === 'yes'));
-  issueCache['t1']       = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() !== 'yes'));
-  issueCache['t2']       = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('2')));
-  issueCache['t34']      = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2')));
-  issueCache['aging']    = sortByWeightedAge(open.filter(i => {
+  const p1    = sortByWeightedAge(support.filter(isP1));
+  const p2    = sortByWeightedAge(support.filter(i => isP2(i) && !isP1(i)));
+  const t1icp = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() === 'yes'));
+  const t1    = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() !== 'yes'));
+  const t2    = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('2')));
+  const t34   = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2')));
+
+  issueCache['p1']    = p1;
+  issueCache['p2']    = p2;
+  issueCache['t1icp'] = t1icp;
+  issueCache['t1']    = t1;
+  issueCache['t2']    = t2;
+  issueCache['t34']   = t34;
+  // Work Queue: ordered concat — P1 → P2 → T1 ICP → T1 → T2 → T3/4
+  issueCache['queue'] = [...p1, ...p2, ...t1icp, ...t1, ...t2, ...t34];
+  issueCache['aging'] = sortByWeightedAge(open.filter(i => {
     const upd = i.fields.updated || i.fields.created;
     return upd && (Date.now() - new Date(upd).getTime()) > agingDays * 86400000;
   }));
   // Note: resolved bucket is managed separately (lazy load) — don't overwrite here
 
   // Update counts for all buckets except resolved (which is lazy)
-  ['p1','p2','t1icp','t1','t2','t34','aging'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : 0));
+  ['p1','p2','t1icp','t1','t2','t34','queue','aging'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : 0));
 }
 
 function updateResolvedCount() {
@@ -952,7 +966,7 @@ function updateResolvedCount() {
 // ── Load all buckets (customer/org mode) ──────────────────────────────────────
 async function loadAllBuckets() {
   const ctx = selectedCustomer || selectedOrg;
-  ['p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => {
+  ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => {
     const s = document.getElementById('stat-' + k); if (s) s.textContent = '…';
     const c = document.getElementById('cnt-' + k); if (c) c.textContent = '…';
   });
@@ -1118,7 +1132,7 @@ async function loadPreset(key, forceReload) {
     } else {
       issues = [];
       let jql = QUERIES[key];
-      if (assigneeMode !== 'all') { const af = assigneeJql(); if (af) jql += ' AND ' + af; }
+      jql = addAssigneeFilter(jql);
       let next = null;
       do {
         const params = { jql, fields: SUPPORT_FIELDS, maxResults: 100 };
@@ -1287,6 +1301,7 @@ function renderTab(tab) {
   }
 
   const TAB_TITLES = {
+    queue: '📋 Work Queue — All Open Tickets',
     p1: t('tab_title_p1'), p2: t('tab_title_p2'),
     t1icp: t('tab_title_t1icp'), t1: t('tab_title_t1'),
     t2: t('tab_title_t2'), t34: t('tab_title_t34'),
@@ -1295,9 +1310,14 @@ function renderTab(tab) {
   };
 
   const showCustomerCol = !!activePreset;
-  const colCount = 7 + (showCustomerCol ? 1 : 0) + (showComments ? 1 : 0);
 
-  const rows = issues.map(issue => renderRow(issue, tab, showCustomerCol)).join('');
+  // For Work Queue: render with section headers between priority/tier groups
+  let rows;
+  if (tab === 'queue') {
+    rows = renderQueueRows(issues, showCustomerCol);
+  } else {
+    rows = issues.map(issue => renderRow(issue, tab, showCustomerCol)).join('');
+  }
 
   panel.innerHTML = `
 <div class="table-container">
@@ -1341,6 +1361,25 @@ function renderTab(tab) {
     localStorage.setItem('sup_comments', showComments.toString());
     renderTab(currentTab);
   });
+}
+
+// Renders Work Queue with section dividers between priority/tier groups
+function renderQueueRows(issues, showCustomerCol) {
+  const SECTIONS = [
+    { key: 'p1',    label: '🔴 P1 — Critical', filter: isP1 },
+    { key: 'p2',    label: '🟠 P2 — High Priority', filter: i => isP2(i) && !isP1(i) },
+    { key: 't1icp', label: 'Tier 1 ICP', filter: i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() === 'yes' },
+    { key: 't1',    label: 'Tier 1', filter: i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() !== 'yes' },
+    { key: 't2',    label: 'Tier 2', filter: i => !isP1(i) && !isP2(i) && getTier(i).includes('2') },
+    { key: 't34',   label: 'Tier 3 / 4', filter: i => !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2') },
+  ];
+  const colSpan = 9 + (showCustomerCol ? 1 : 0);
+  return SECTIONS.map(section => {
+    const sectionIssues = issues.filter(section.filter);
+    if (!sectionIssues.length) return '';
+    const header = `<tr class="bucket-section-header"><td colspan="${colSpan}">${section.label} <span style="font-weight:400;opacity:.6">(${sectionIssues.length})</span></td></tr>`;
+    return header + sectionIssues.map(i => renderRow(i, 'queue', showCustomerCol)).join('');
+  }).join('');
 }
 
 function renderRow(issue, tab, showCustomerCol) {
@@ -1489,7 +1528,7 @@ function updateURL() {
   if (activePreset) params.set('preset', activePreset);
   else if (selectedCustomer) params.set('customer', selectedCustomer);
   else if (selectedOrg) params.set('org', selectedOrg);
-  if (currentTab && currentTab !== 'p1') params.set('tab', currentTab);
+  if (currentTab && currentTab !== 'queue') params.set('tab', currentTab);
   if (resolvedDays !== 30) params.set('resolved_days', resolvedDays);
   if (agingDays !== 30) params.set('aging_days', agingDays);
   if (activeProductFilter) params.set('product', activeProductFilter);
@@ -1686,6 +1725,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1930</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1945</div>
 </body>
 </html>
