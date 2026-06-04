@@ -3,6 +3,9 @@
 <head>
   <link rel="icon" href="Engageware_Heart.png" type="image/png">
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Engageware Support Dashboard</title>
 <style>
@@ -243,7 +246,6 @@
         <button class="assignee-btn" id="assignee-btn-all" onclick="setAssigneeMode('all')" data-i18n="assignee_all">All Tickets</button>
       </div>
       <span id="current-user-chip"></span>
-      <button id="clear-state-btn" onclick="clearAllState()" title="Clear all saved state and start fresh" style="display:none;margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;" onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">✕ Clear All Filters</button>
     </div>
   </div>
 
@@ -1679,16 +1681,6 @@ async function loadDefaultView() {
   }
 }
 
-
-function clearAllState() {
-  // Clear all saved state from localStorage
-  ['sup_customer','sup_org','sup_preset','sup_tab','sup_assignee_mode',
-   'sup_product_filter','sup_priority_filter','sup_projects'].forEach(k => localStorage.removeItem(k));
-  clearSessionCache();
-  // Navigate to clean base URL
-  window.location.href = window.location.pathname;
-}
-
 function restoreFromState() {
   const urlCustomer  = sessionStorage.getItem('sup_pending_customer');
   const urlOrg       = sessionStorage.getItem('sup_pending_org');
@@ -1748,8 +1740,7 @@ function restoreFromState() {
     if (aw) aw.style.setProperty('display', tab === 'aging' ? 'flex' : 'none', 'important');
   }
 
-  // Only restore from localStorage if the URL has params (bookmarked/shared link).
-  // A clean base URL always starts fresh — no auto-redirect to previous session.
+  // Clean base URL (no params) = fresh start. Params present = bookmarked/shared link = restore from localStorage.
   const hasUrlParams = window.location.search.length > 1;
   const savedCustomer = urlCustomer || directCustomer || (hasUrlParams ? localStorage.getItem('sup_customer') : null);
   const savedOrg      = urlOrg      || directOrg      || (hasUrlParams ? localStorage.getItem('sup_org') : null);
@@ -1798,7 +1789,6 @@ async function initApp() {
   document.getElementById('auth-btn').textContent = t('sign_out');
   document.getElementById('auth-btn').onclick = logout;
   document.getElementById('auth-btn').className = 'secondary';
-  const clearBtn = document.getElementById('clear-state-btn'); if (clearBtn) clearBtn.style.display = 'inline-block';
 
   // Show assignee row
   document.getElementById('assignee-row').style.display = 'flex';
@@ -1880,6 +1870,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2230</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2245</div>
 </body>
 </html>
