@@ -716,7 +716,7 @@ const SUPPORT_FIELDS = [
   CF_PRODUCT, CF_CUST_OUT, CF_TIER, CF_ICP, 'issuelinks'
 ].join(',');
 
-async function searchIssues(jql, fields = SUPPORT_FIELDS) {
+async function searchIssues(jql, fields = SUPPORT_FIELDS, maxTotal = 2000) {
   const all = []; let next = null;
   do {
     const params = { jql, fields, maxResults: 100 };
@@ -726,6 +726,7 @@ async function searchIssues(jql, fields = SUPPORT_FIELDS) {
     all.push(...issues);
     next = data.nextPageToken || null;
     if (issues.length < 100) break;
+    if (all.length >= maxTotal) break; // Safety cap
   } while (next);
   return all;
 }
@@ -1044,16 +1045,16 @@ async function loadAllBuckets() {
 // No assignee filter: resolved/SLA are org-wide team metrics
 async function loadResolvedBucket() {
   const ctx = selectedCustomer || selectedOrg;
-  // contextFilter is null for default view (no customer/org/preset) — fetches all resolved tickets
   const contextFilter = (ctx || activePreset) ? (activePreset ? null : (selectedOrg ? orgJql(selectedOrg) : customerJql(ctx))) : null;
-  // 90d max — covers both the resolved tab (30d default, picker up to 90d) and SLA (needs 90d)
   const jql = contextFilter
     ? `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
     : `project in ${jqlActiveProjects()} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
-  // NOTE: no addAssigneeFilter here — resolved/SLA must be org-wide
+  // Use minimal fields for SLA calc — no comment/issuelinks (those are heavy)
+  const slaFields = 'summary,status,priority,created,resolutiondate,statuscategorychangedate,project';
+  // NOTE: no addAssigneeFilter — SLA is an org-wide metric
 
   try {
-    const issues = await searchIssues(jql);
+    const issues = await searchIssues(jql, slaFields, 500);
     issueCache['resolved'] = issues;
     slaCache = issues;
     updateResolvedCount();
@@ -1870,6 +1871,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2245</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2260</div>
 </body>
 </html>
