@@ -592,32 +592,51 @@ let issueCache       = {};  // tab -> issues[]
 let slaCache         = null; // resolved tickets for SLA computation
 let presetCache      = {};  // key -> {issues, ts}
 
-// ── Session cache (survives page refresh within TTL) ──────────────────────────
+// ── IndexedDB cache (survives page refresh, handles full ticket data + comments) ──
+const IDB_NAME = 'sup-cache', IDB_STORE = 'tickets';
 function getCacheKey() {
   return JSON.stringify({ preset: activePreset, customer: selectedCustomer, org: selectedOrg, assignee: assigneeMode, projects: [...activeProjects].sort() });
 }
-function saveCacheToSession() {
-  try {
-    sessionStorage.setItem('sup_cache_data', JSON.stringify(issueCache));
-    sessionStorage.setItem('sup_cache_ts', Date.now().toString());
-    sessionStorage.setItem('sup_cache_key', getCacheKey());
-  } catch(e) {}
+function openIDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains(IDB_STORE)) e.target.result.createObjectStore(IDB_STORE); };
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = e => rej(e.target.error);
+  });
 }
-function loadCacheFromSession() {
+async function saveCacheToSession() {
   try {
-    const ts = parseInt(sessionStorage.getItem('sup_cache_ts') || '0');
-    if (Date.now() - ts > TICKET_TTL) return false;
-    const key = sessionStorage.getItem('sup_cache_key');
-    if (key !== getCacheKey()) return false;
-    const data = JSON.parse(sessionStorage.getItem('sup_cache_data') || 'null');
-    if (!data) return false;
-    return data;
+    const payload = { data: issueCache, ts: Date.now(), key: getCacheKey() };
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(payload, 'main');
+    await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    db.close();
+    console.log('[Cache] Saved to IndexedDB');
+  } catch(e) { console.warn('[Cache] IDB save failed:', e.message); }
+}
+async function loadCacheFromSession() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get('main');
+    const result = await new Promise((res, rej) => { req.onsuccess = e => res(e.target.result); req.onerror = rej; });
+    db.close();
+    if (!result) return false;
+    if (Date.now() - result.ts > TICKET_TTL) return false;
+    if (result.key !== getCacheKey()) return false;
+    return result.data;
   } catch(e) { return false; }
 }
-function clearSessionCache() {
-  sessionStorage.removeItem('sup_cache_data');
-  sessionStorage.removeItem('sup_cache_ts');
-  sessionStorage.removeItem('sup_cache_key');
+async function clearSessionCache() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete('main');
+    await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    db.close();
+  } catch(e) {}
 }
 
 const TICKET_TTL     = 60 * 60 * 1000;  // 1 hour for ticket data
@@ -1934,6 +1953,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2335</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2338</div>
 </body>
 </html>
