@@ -285,7 +285,7 @@
   <hr class="section-divider">
 
   <!-- SLA Metrics Panel -->
-  <div id="sla-panel" style="display:none">
+  <div id="sla-panel">
     <div class="sla-panel-label" data-i18n="sla_label">SLA Performance</div>
     <div class="sla-grid">
       <div class="sla-card">
@@ -338,7 +338,7 @@
   </div>
 
   <!-- Stat tiles -->
-  <div class="stats-row" id="stats-row" style="display:none">
+  <div class="stats-row" id="stats-row">
     <div class="stat-card clickable-stat" onclick="switchTab('queue')" title="Work Queue">
       <div class="stat-label">📋 Queue</div>
       <div class="stat-value" id="stat-queue">…</div>
@@ -378,7 +378,7 @@
   </div>
 
   <!-- Bucket tabs -->
-  <div class="bucket-tabs" id="bucket-tabs" style="display:none">
+  <div class="bucket-tabs" id="bucket-tabs">
     <button class="tab-btn active" id="tab-queue" onclick="switchTab('queue')">📋 Work Queue <span class="count" id="cnt-queue">…</span></button>
     <button class="tab-btn" id="tab-p1" onclick="switchTab('p1')">🔴 P1 <span class="count" id="cnt-p1">…</span></button>
     <button class="tab-btn" id="tab-p2" onclick="switchTab('p2')">🟠 P2 <span class="count" id="cnt-p2">…</span></button>
@@ -695,21 +695,31 @@ async function searchIssues(jql, fields = SUPPORT_FIELDS) {
 }
 
 // ── Current user ──────────────────────────────────────────────────────────────
-async function fetchCurrentUser() {
+function fetchCurrentUser() {
+  // Decode account ID directly from the JWT token — no network call, no CORS issues
   try {
-    const r = await fetch('https://api.atlassian.com/me', {
-      headers: {'Authorization': `Bearer ${accessToken}`}
-    });
-    if (!r.ok) { if (assigneeMode === 'mine-unassigned') { assigneeMode = 'all'; document.getElementById('assignee-btn-mine').classList.remove('active'); document.getElementById('assignee-btn-all').classList.add('active'); } return; }
-    const data = await r.json();
-    currentUserAccountId = data.account_id || null;
-    currentUserName = data.name || data.email || data.account_id || '';
-    if (currentUserAccountId) {
-      const chip = document.getElementById('current-user-chip');
-      chip.textContent = '(' + currentUserName + ')';
-      chip.classList.add('visible');
+    const parts = (accessToken || '').split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      currentUserAccountId = payload.sub || payload.account_id || null;
+      if (currentUserAccountId) {
+        // Try to get display name from token claims
+        currentUserName = payload.name || payload.email || currentUserAccountId;
+        const chip = document.getElementById('current-user-chip');
+        if (chip) { chip.textContent = '(' + currentUserName + ')'; chip.classList.add('visible'); }
+        console.log('[Support] User ID from token:', currentUserAccountId);
+        return;
+      }
     }
-  } catch(e) { console.warn('[Support] Could not fetch current user:', e); if (assigneeMode === 'mine-unassigned') { assigneeMode = 'all'; document.getElementById('assignee-btn-mine').classList.remove('active'); document.getElementById('assignee-btn-all').classList.add('active'); } }
+  } catch(e) { console.warn('[Support] Could not decode token:', e); }
+  // Fallback: no account ID — default to All Tickets so nothing is filtered out
+  if (assigneeMode === 'mine-unassigned') {
+    assigneeMode = 'all';
+    const mine = document.getElementById('assignee-btn-mine');
+    const all  = document.getElementById('assignee-btn-all');
+    if (mine) mine.classList.remove('active');
+    if (all)  all.classList.add('active');
+  }
 }
 
 // ── Assignee filter ───────────────────────────────────────────────────────────
@@ -851,9 +861,9 @@ function clearCustomer() {
   issueCache = {}; slaCache = null;
   localStorage.removeItem('sup_customer'); localStorage.removeItem('sup_org'); localStorage.removeItem('sup_tab');
   document.getElementById('customer-badge').classList.remove('visible');
-  document.getElementById('stats-row').style.display = 'none';
-  document.getElementById('bucket-tabs').style.display = 'none';
-  document.getElementById('sla-panel').style.display = 'none';
+  
+  
+  
   document.getElementById('issues-panel').innerHTML = '';
   document.getElementById('customer-search').value = '';
   document.getElementById('org-search').value = '';
@@ -1716,7 +1726,7 @@ async function initApp() {
   document.getElementById('filter-eng-closed').classList.toggle('active', showEngClosed);
 
   // Load user info + customer/org lists in parallel
-  await Promise.all([fetchCurrentUser(), loadCustomers(), loadOrgs()]);
+  fetchCurrentUser(); await Promise.all([loadCustomers(), loadOrgs()]);
 
   // Wire search boxes
   wireSearchBox('customer-search','customer-dropdown-list', allCustomers, selectCustomer);
@@ -1758,6 +1768,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2100</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2130</div>
 </body>
 </html>
