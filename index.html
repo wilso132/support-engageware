@@ -621,9 +621,10 @@ async function saveCacheToSession() {
 async function saveSlaCacheToSession() {
   if (!slaCache) return;
   try {
+    const slaKey = JSON.stringify([...activeProjects].sort()); // project-only key — independent of preset
     const db = await openIDB();
     const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put({ data: slaCache, resolved: issueCache['resolved'], ts: Date.now(), key: getCacheKey() }, 'sla');
+    tx.objectStore(IDB_STORE).put({ data: slaCache, resolved: issueCache['resolved'], ts: Date.now(), key: getCacheKey(), slaKey }, 'sla');
     await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
     db.close();
     console.log('[Cache] Saved SLA data to IndexedDB (1hr TTL)');
@@ -644,7 +645,7 @@ async function loadCacheFromSession() {
     if (main.key !== getCacheKey()) return false;
     const data = { ...main.data };
     // Restore SLA/resolved if within 1hr TTL and same key
-    if (sla && Date.now() - sla.ts <= SLA_TTL && sla.key === getCacheKey()) {
+    if (sla && Date.now() - sla.ts <= SLA_TTL && sla.slaKey === JSON.stringify([...activeProjects].sort())) {
       data['resolved'] = sla.resolved || null;
       if (sla.data) { slaCache = sla.data; }
     }
@@ -1112,9 +1113,33 @@ async function loadResolvedBucket() {
 }
 
 // Non-blocking SLA background fetch — delegates to loadResolvedBucket (shared data)
+async function loadSlaCacheFromIDB() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get('sla');
+    const result = await new Promise(r => { req.onsuccess = e => r(e.target.result); req.onerror = () => r(null); });
+    db.close();
+    if (!result) return null;
+    if (Date.now() - result.ts > SLA_TTL) return null;
+    // SLA cache key is project-only — independent of preset/customer/org
+    if (result.slaKey !== JSON.stringify([...activeProjects].sort())) return null;
+    return result;
+  } catch(e) { return null; }
+}
+
 async function loadSlaBackground(contextFilter) {
   if (slaCache) {
-    hideSlaLoading(); // Cache hit — clear spinner and show cached data
+    hideSlaLoading();
+    updateSlaPanel();
+    return;
+  }
+  // Check IDB for cached SLA data before fetching (survives preset/customer switches)
+  const cached = await loadSlaCacheFromIDB();
+  if (cached) {
+    slaCache = cached.data;
+    if (cached.resolved) { issueCache['resolved'] = cached.resolved; updateResolvedCount(); }
+    hideSlaLoading();
     updateSlaPanel();
     return;
   }
@@ -1986,6 +2011,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2343</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2344</div>
 </body>
 </html>
