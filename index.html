@@ -621,7 +621,7 @@ async function saveCacheToSession() {
 async function saveSlaCacheToSession() {
   if (!slaCache) return;
   try {
-    const slaKey = JSON.stringify([...activeProjects].sort()); // project-only key — independent of preset
+    const slaKey = SLA_SCHEMA + ':' + JSON.stringify([...activeProjects].sort()); // versioned project-only key
     const db = await openIDB();
     const tx = db.transaction(IDB_STORE, 'readwrite');
     tx.objectStore(IDB_STORE).put({ data: slaCache, resolved: issueCache['resolved'], ts: Date.now(), key: getCacheKey(), slaKey }, 'sla');
@@ -645,7 +645,7 @@ async function loadCacheFromSession() {
     if (main.key !== getCacheKey()) return false;
     const data = { ...main.data };
     // Restore SLA/resolved if within 1hr TTL and same key
-    if (sla && Date.now() - sla.ts <= SLA_TTL && sla.slaKey === JSON.stringify([...activeProjects].sort())) {
+    if (sla && Date.now() - sla.ts <= SLA_TTL && sla.slaKey === SLA_SCHEMA + ':' + JSON.stringify([...activeProjects].sort())) {
       data['resolved'] = sla.resolved || null;
       if (sla.data) { slaCache = sla.data; }
     }
@@ -665,6 +665,7 @@ async function clearSessionCache() {
 
 const TICKET_TTL     = 5 * 60 * 1000;   // 5 minutes for open tickets
 const SLA_TTL        = 60 * 60 * 1000;  // 1 hour for SLA/resolved data
+const SLA_SCHEMA     = 'v2'; // increment when SLA_FIELDS change to bust old cache
 const PRESET_TTL     = 60 * 60 * 1000;  // 1 hour for preset data
 const CUSTOMER_TTL   = 4 * 60 * 60 * 1000; // 4 hours for customer/org lists
 
@@ -1123,7 +1124,7 @@ async function loadSlaCacheFromIDB() {
     if (!result) return null;
     if (Date.now() - result.ts > SLA_TTL) return null;
     // SLA cache key is project-only — independent of preset/customer/org
-    if (result.slaKey !== JSON.stringify([...activeProjects].sort())) return null;
+    if (result.slaKey !== SLA_SCHEMA + ':' + JSON.stringify([...activeProjects].sort())) return null;
     return result;
   } catch(e) { return null; }
 }
@@ -1169,8 +1170,11 @@ function updateSlaPanel() {
   if (!slaCache) return;
   let slaData = slaCache;
   if (activeProductFilter) { const _sp=activeProductFilter.split(','); slaData=slaData.filter(i=>_sp.includes(i.fields?.project?.key)); }
-  if (activePreset && activePreset.startsWith('t1')) { slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('1')); }
-  else if (activePreset==='t2-all') { slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('2')); }
+  // Tier filter — only apply if cached data has tier field (schema v2+)
+  if (activePreset && slaData.length && slaData[0].fields?.customfield_13703 !== undefined) {
+    if (activePreset.startsWith('t1')) slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('1'));
+    else if (activePreset==='t2-all') slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('2'));
+  }
   ['p1','p2','p3'].forEach(p => {
     [30, 90].forEach(days => {
       const result = computeSla(slaData, p, days);
@@ -2024,6 +2028,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2346</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2347</div>
 </body>
 </html>
