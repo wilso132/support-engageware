@@ -584,7 +584,7 @@ let agingDays        = parseInt(localStorage.getItem('sup_aging_days') || '30');
 let activeProductFilter  = sessionStorage.getItem('sup_product_filter')  || '';
 let activePriorityFilter = sessionStorage.getItem('sup_priority_filter') || '';
 let showActionable   = localStorage.getItem('sup_actionable') !== 'false'; // default true
-let showEngClosed    = localStorage.getItem('sup_eng_closed') === 'true';  // default false
+let showEngClosed    = false; // never persisted — always starts off
 let showComments     = localStorage.getItem('sup_comments') === 'true';
 let activeProjects   = JSON.parse(localStorage.getItem('sup_projects') || 'null') || [...SUPPORT_PROJECTS];
 let issueCache       = {};  // tab -> issues[]
@@ -1259,7 +1259,7 @@ function toggleActionableFilter() {
 }
 function toggleEngClosedFilter() {
   showEngClosed = !showEngClosed;
-  localStorage.setItem('sup_eng_closed', showEngClosed.toString());
+  // showEngClosed is session-only, not persisted
   document.getElementById('filter-eng-closed').classList.toggle('active', showEngClosed);
   renderTab(currentTab);
 }
@@ -1894,6 +1894,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2310</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2315</div>
 </body>
 </html>
