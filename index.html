@@ -1063,6 +1063,7 @@ async function loadResolvedBucket() {
     issueCache['resolved'] = issues;
     slaCache = issues;
     updateResolvedCount();
+    hideSlaLoading();
     updateSlaPanel();
     saveCacheToSession(); // Update cache to include resolved/SLA data
     if (currentTab === 'resolved') renderTab('resolved');
@@ -1082,14 +1083,21 @@ async function loadSlaBackground(contextFilter) {
 
 // ── SLA Panel ─────────────────────────────────────────────────────────────────
 function showSlaLoading() {
+  const label = document.querySelector('.sla-panel-label');
+  if (label) label.innerHTML = 'SLA PERFORMANCE <span class="sla-loading" style="margin-left:6px;"></span>';
   ['p1','p2','p3'].forEach(p => {
     [30, 90].forEach(days => {
       const el = document.getElementById(`sla-${p}-${days}`);
       const sub = document.getElementById(`sla-${p}-${days}-sub`);
       if (el) { el.innerHTML = '<span class="sla-loading"></span>'; el.className = 'sla-pct na'; }
-      if (sub) sub.textContent = '';
+      if (sub) sub.textContent = 'Fetching…';
     });
   });
+}
+
+function hideSlaLoading() {
+  const label = document.querySelector('.sla-panel-label');
+  if (label) label.textContent = 'SLA PERFORMANCE';
 }
 
 function updateSlaPanel() {
@@ -1702,6 +1710,7 @@ async function loadDefaultView() {
     updateURL();
     return;
   }
+  showSlaLoading(); // Show SLA loading immediately
   // Show loading state in issues panel
   const panel = document.getElementById('issues-panel');
   if (panel) panel.innerHTML = '<div class="table-container"><div class="loading"><div class="spinner"></div><br>Loading tickets…</div></div>';
@@ -1921,6 +1930,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2320</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2325</div>
 </body>
 </html>
