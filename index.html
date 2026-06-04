@@ -179,6 +179,10 @@
   .age-medium { color:var(--warning); }
   .icp-badge { display:inline-block; background:rgba(124,58,237,.15); color:var(--accent2); border:1px solid rgba(124,58,237,.3); border-radius:4px; padding:1px 6px; font-size:10px; font-weight:600; margin-left:4px; }
   .tier-badge { display:inline-block; background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:10px; color:var(--muted); margin-left:4px; }
+
+  .proj-filter-btn { padding:3px 8px; border-radius:4px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:11px; font-family:'IBM Plex Mono',monospace; cursor:pointer; transition:all .15s; }
+  .proj-filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .proj-filter-btn:hover:not(.active) { border-color:var(--accent); color:var(--text); }
   .eng-closed-badge { display:inline-block; background:rgba(16,185,129,.12); color:var(--success); border:1px solid rgba(16,185,129,.3); border-radius:4px; padding:1px 6px; font-size:10px; font-weight:600; margin-left:4px; }
 
   /* ── Comment row ── */
@@ -415,6 +419,10 @@
     <button class="filter-toggle-btn" id="filter-eng-closed" onclick="toggleEngClosedFilter()" title="Show tickets where linked Engineering/OPS ticket is resolved">
       🔗 <span data-i18n="filter_eng_closed">Aging / Eng Closed</span>
     </button>
+    <div class="filter-separator"></div>
+    <div id="project-filter-bar" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+      <span class="prod-filter-label">Projects:</span>
+    </div>
     <div class="filter-separator" id="filter-sep" style="display:none"></div>
     <div id="product-filter-bar"></div>
     <div id="priority-filter-bar" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;"></div>
@@ -579,6 +587,7 @@ let activePriorityFilter = sessionStorage.getItem('sup_priority_filter') || '';
 let showActionable   = localStorage.getItem('sup_actionable') !== 'false'; // default true
 let showEngClosed    = localStorage.getItem('sup_eng_closed') === 'true';  // default false
 let showComments     = localStorage.getItem('sup_comments') === 'true';
+let activeProjects   = JSON.parse(localStorage.getItem('sup_projects') || 'null') || [...SUPPORT_PROJECTS];
 let issueCache       = {};  // tab -> issues[]
 let slaCache         = null; // resolved tickets for SLA computation
 let presetCache      = {};  // key -> {issues, ts}
@@ -704,9 +713,12 @@ function fetchCurrentUser() {
       currentUserAccountId = payload.sub || payload.account_id || null;
       if (currentUserAccountId) {
         // Try to get display name from token claims
-        currentUserName = payload.name || payload.email || currentUserAccountId;
-        const chip = document.getElementById('current-user-chip');
-        if (chip) { chip.textContent = '(' + currentUserName + ')'; chip.classList.add('visible'); }
+        // Don't show the raw account ID as display name — chip hidden if no real name
+        currentUserName = payload.name || payload.email || '';
+        if (currentUserName) {
+          const chip = document.getElementById('current-user-chip');
+          if (chip) { chip.textContent = '(' + currentUserName + ')'; chip.classList.add('visible'); }
+        }
         console.log('[Support] User ID from token:', currentUserAccountId);
         return;
       }
@@ -984,7 +996,7 @@ async function loadAllBuckets() {
 
   // Build base JQL — open tickets only
   const contextFilter = selectedOrg ? orgJql(selectedOrg) : customerJql(ctx);
-  let baseJql = `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory != Done ORDER BY created ASC`;
+  let baseJql = `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory != Done ORDER BY created ASC`;
   baseJql = addAssigneeFilter(baseJql);
 
   try {
@@ -1011,8 +1023,8 @@ async function loadResolvedBucket() {
   const contextFilter = activePreset ? null : (selectedOrg ? orgJql(selectedOrg) : customerJql(ctx));
   // 90d max — covers both the resolved tab (30d default, picker up to 90d) and SLA (needs 90d)
   const jql = contextFilter
-    ? `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
-    : `project in ${jqlProjects(SUPPORT_PROJECTS)} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
+    ? `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
+    : `project in ${jqlActiveProjects()} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
   // NOTE: no addAssigneeFilter here — resolved/SLA must be org-wide
 
   try {
@@ -1077,7 +1089,7 @@ function computeSla(issues, priority, windowDays) {
 
 // ── Preset loading ────────────────────────────────────────────────────────────
 function getPresetQueries() {
-  const sup = jqlProjects(SUPPORT_PROJECTS);
+  const sup = jqlActiveProjects();
   const all = jqlProjects(ALL_PROJECTS);
   return {
     't1-all':    `project in ${all} AND cf[13703] = "Tier 1" AND statusCategory != Done ORDER BY priority ASC, created ASC`,
@@ -1265,6 +1277,38 @@ function setPriorityFilter(priority) {
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
+
+// ── Project filter ────────────────────────────────────────────────────────────
+function initProjectFilter() {
+  const bar = document.getElementById('project-filter-bar');
+  if (!bar) return;
+  SUPPORT_PROJECTS.forEach(proj => {
+    const btn = document.createElement('button');
+    btn.className = 'proj-filter-btn' + (activeProjects.includes(proj) ? ' active' : '');
+    btn.textContent = proj;
+    btn.title = proj;
+    btn.onclick = () => toggleProject(proj, btn);
+    bar.appendChild(btn);
+  });
+}
+
+function toggleProject(proj, btn) {
+  if (activeProjects.includes(proj)) {
+    if (activeProjects.length === 1) return; // keep at least one
+    activeProjects = activeProjects.filter(p => p !== proj);
+    btn.classList.remove('active');
+  } else {
+    activeProjects = [...activeProjects, proj];
+    btn.classList.add('active');
+  }
+  localStorage.setItem('sup_projects', JSON.stringify(activeProjects));
+  reload();
+}
+
+function jqlActiveProjects() {
+  return '(' + activeProjects.map(p => '"' + p + '"').join(', ') + ')';
+}
+
 function renderTab(tab) {
   const panel = document.getElementById('issues-panel');
   let issues = issueCache[tab];
@@ -1567,7 +1611,7 @@ async function loadDefaultView() {
   ['queue','p1','p2','t1icp','t1','t2','t34','aging'].forEach(k => { updateCount(k, '…'); });
   issueCache['resolved'] = null; updateCount('resolved', '—');
 
-  let jql = `project in ${jqlProjects(SUPPORT_PROJECTS)} AND statusCategory != Done ORDER BY created ASC`;
+  let jql = `project in ${jqlActiveProjects()} AND statusCategory != Done ORDER BY created ASC`;
   jql = addAssigneeFilter(jql);
   try {
     const issues = await searchIssues(jql);
@@ -1576,6 +1620,7 @@ async function loadDefaultView() {
     updatePriorityFilterBar(currentTab);
     renderTab(currentTab);
     loadSlaBackground(null);
+    updateURL(); // Reflect restored state in URL
   } catch(e) {
     if (panel) panel.innerHTML = '<div class="table-container"><div class="empty" style="color:var(--danger)">Error loading tickets: ' + escHtml(e.message) + '</div></div>';
   }
@@ -1726,7 +1771,7 @@ async function initApp() {
   document.getElementById('filter-eng-closed').classList.toggle('active', showEngClosed);
 
   // Load user info + customer/org lists in parallel
-  fetchCurrentUser(); await Promise.all([loadCustomers(), loadOrgs()]);
+  fetchCurrentUser(); initProjectFilter(); await Promise.all([loadCustomers(), loadOrgs()]);
 
   // Wire search boxes
   wireSearchBox('customer-search','customer-dropdown-list', allCustomers, selectCustomer);
@@ -1768,6 +1813,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2130</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2200</div>
 </body>
 </html>
