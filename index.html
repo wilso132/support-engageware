@@ -1383,6 +1383,7 @@ function updateProductFilterBar(tab) {
   const _sel = activeProductFilter ? activeProductFilter.split(',') : [];
   Array.from(projects).sort().forEach(p => {
     html += `<button class="prod-filter-btn${_sel.includes(p)?' active':''}" onclick="toggleProjectFilter('${p}')">${escHtml(p)}</button>`;
+  });
   bar.innerHTML = html;
   const sep = document.getElementById('filter-sep');
   if (sep) sep.style.display = projects.size ? 'block' : 'none';
@@ -2023,6 +2024,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2345</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2346</div>
 </body>
 </html>
