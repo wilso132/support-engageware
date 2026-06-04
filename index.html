@@ -398,7 +398,6 @@
     <button class="day-btn active" data-days="30">30d</button>
     <button class="day-btn" data-days="60">60d</button>
     <button class="day-btn" data-days="90">90d</button>
-    <button class="day-btn" data-days="365">1y</button>
   </div>
   <div id="aging-slider-wrap" class="day-picker-wrap" style="display:none!important">
     <span data-i18n="show_aging">Aging threshold:</span>
@@ -427,7 +426,7 @@
 </main>
 </div>
 
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1945</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2000</div>
 
 <script>
 // ── i18n ──────────────────────────────────────────────────────────────────────
@@ -608,7 +607,7 @@ function startAuth() {
   localStorage.setItem('sup_oauth_state', state);
   const params = new URLSearchParams({
     audience: 'api.atlassian.com', client_id: CLIENT_ID,
-    scope: 'read:jira-work read:jira-user offline_access',
+    scope: 'read:jira-work read:jira-user read:account offline_access',
     redirect_uri: REDIRECT_URI, state, response_type: 'code', prompt: 'consent',
   });
   window.location = 'https://auth.atlassian.com/authorize?' + params;
@@ -995,15 +994,18 @@ async function loadAllBuckets() {
 }
 
 // Lazy resolved fetch — called when user clicks Resolved tab
+// Lazy resolved + SLA fetch — shared 90d window (max)
+// No assignee filter: resolved/SLA are org-wide team metrics
 async function loadResolvedBucket() {
   const ctx = selectedCustomer || selectedOrg;
   if (!ctx && !activePreset) return;
 
   const contextFilter = activePreset ? null : (selectedOrg ? orgJql(selectedOrg) : customerJql(ctx));
-  let jql = contextFilter
-    ? `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-365d" ORDER BY resolutiondate DESC`
+  // 90d max — covers both the resolved tab (30d default, picker up to 90d) and SLA (needs 90d)
+  const jql = contextFilter
+    ? `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
     : `project in ${jqlProjects(SUPPORT_PROJECTS)} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
-  jql = addAssigneeFilter(jql);
+  // NOTE: no addAssigneeFilter here — resolved/SLA must be org-wide
 
   try {
     const issues = await searchIssues(jql);
@@ -1018,22 +1020,11 @@ async function loadResolvedBucket() {
   }
 }
 
-// Non-blocking SLA background fetch (for preset mode where we don't have context-filtered resolved)
+// Non-blocking SLA background fetch — delegates to loadResolvedBucket (shared data)
 async function loadSlaBackground(contextFilter) {
   if (slaCache) return;
-  try {
-    let jql = contextFilter
-      ? `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
-      : `project in ${jqlProjects(SUPPORT_PROJECTS)} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
-    jql = addAssigneeFilter(jql);
-    slaCache = await searchIssues(jql);
-    updateSlaPanel();
-    // Also populate resolved cache from this fetch if not already done
-    if (!issueCache['resolved']) {
-      issueCache['resolved'] = slaCache;
-      updateResolvedCount();
-    }
-  } catch(e) { slaCache = []; }
+  // Just trigger the resolved bucket load which populates slaCache too
+  await loadResolvedBucket();
 }
 
 // ── SLA Panel ─────────────────────────────────────────────────────────────────
@@ -1725,6 +1716,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1945</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2000</div>
 </body>
 </html>
