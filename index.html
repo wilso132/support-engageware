@@ -109,6 +109,7 @@
   .sla-pct.warn { color:var(--warning); }
   .sla-pct.bad  { color:var(--danger); }
   .sla-pct.na   { color:var(--muted); font-size:14px; }
+  .sla-loading { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--muted); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-bottom:2px; }
   .sla-sub { font-size:10px; color:var(--muted); }
 
   /* ── Stats row ── */
@@ -619,8 +620,8 @@ function clearSessionCache() {
   sessionStorage.removeItem('sup_cache_key');
 }
 
-const TICKET_TTL     = 5 * 60 * 1000;   // 5 minutes for ticket data
-const PRESET_TTL     = 5 * 60 * 1000;   // 5 minutes for preset data
+const TICKET_TTL     = 60 * 60 * 1000;  // 1 hour for ticket data
+const PRESET_TTL     = 60 * 60 * 1000;  // 1 hour for preset data
 const CUSTOMER_TTL   = 4 * 60 * 60 * 1000; // 4 hours for customer/org lists
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -1055,6 +1056,7 @@ async function loadResolvedBucket() {
 
   const SLA_FIELDS = 'summary,status,priority,created,resolutiondate,statuscategorychangedate,project';
   try {
+    showSlaLoading();
     console.log('[SLA] Fetching resolved tickets...');
     const issues = await searchIssues(jql, SLA_FIELDS, 500);
     console.log('[SLA] Got', issues.length, 'resolved tickets');
@@ -1062,6 +1064,7 @@ async function loadResolvedBucket() {
     slaCache = issues;
     updateResolvedCount();
     updateSlaPanel();
+    saveCacheToSession(); // Update cache to include resolved/SLA data
     if (currentTab === 'resolved') renderTab('resolved');
   } catch(e) {
     console.error('[SLA] Error:', e.message);
@@ -1078,6 +1081,17 @@ async function loadSlaBackground(contextFilter) {
 }
 
 // ── SLA Panel ─────────────────────────────────────────────────────────────────
+function showSlaLoading() {
+  ['p1','p2','p3'].forEach(p => {
+    [30, 90].forEach(days => {
+      const el = document.getElementById(`sla-${p}-${days}`);
+      const sub = document.getElementById(`sla-${p}-${days}-sub`);
+      if (el) { el.innerHTML = '<span class="sla-loading"></span>'; el.className = 'sla-pct na'; }
+      if (sub) sub.textContent = '';
+    });
+  });
+}
+
 function updateSlaPanel() {
   if (!slaCache) return;
   ['p1','p2','p3'].forEach(p => {
@@ -1091,10 +1105,17 @@ function updateSlaPanel() {
         if (subEl) subEl.textContent = 'No data';
         return;
       }
-      const pct = result.pct;
-      pctEl.textContent = pct + '%';
-      pctEl.className = 'sla-pct ' + (pct >= 90 ? 'good' : pct >= 70 ? 'warn' : 'bad');
-      if (subEl) subEl.textContent = `${result.hits}/${result.total}`;
+      const { pct, avgDays } = result;
+      const slaDays = priority === 'p1' ? 4/24 : priority === 'p2' ? 1 : 5;
+      // Main number: avg days (color-coded against SLA threshold)
+      const ratio = avgDays / slaDays;
+      const colorClass = ratio <= 0.75 ? 'good' : ratio <= 1.0 ? 'warn' : 'bad';
+      pctEl.textContent = avgDays < 1
+        ? (avgDays * 24).toFixed(1) + 'h'
+        : avgDays.toFixed(1) + 'd';
+      pctEl.className = 'sla-pct ' + colorClass;
+      // Sub: hit rate %
+      if (subEl) subEl.textContent = pct + '% within SLA';
     });
   });
 }
@@ -1114,7 +1135,13 @@ function computeSla(issues, priority, windowDays) {
     if (!resolved) return false;
     return (resolved.getTime() - created.getTime()) / 3600000 <= slaHours;
   });
-  return { total: recent.length, hits: hits.length, pct: Math.round(hits.length / recent.length * 100) };
+  // Average resolution time in days across all resolved tickets
+  const avgDays = recent.reduce((sum, i) => {
+    const created = new Date(i.fields.created);
+    const resolved = getEffectiveResolvedDate(i);
+    return resolved ? sum + (resolved.getTime() - created.getTime()) / 86400000 : sum;
+  }, 0) / recent.length;
+  return { total: recent.length, hits: hits.length, pct: Math.round(hits.length / recent.length * 100), avgDays };
 }
 
 // ── Preset loading ────────────────────────────────────────────────────────────
@@ -1671,7 +1698,7 @@ async function loadDefaultView() {
     renderTab(currentTab);
     ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : (k==='resolved'?'—':0)));
     updateResolvedCount();
-    if (!slaCache && issueCache['resolved']) { slaCache = issueCache['resolved']; updateSlaPanel(); }
+    if (issueCache['resolved'] && issueCache['resolved'].length) { slaCache = issueCache['resolved']; updateSlaPanel(); }
     updateURL();
     return;
   }
@@ -1894,6 +1921,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2315</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2320</div>
 </body>
 </html>
