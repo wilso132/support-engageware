@@ -426,8 +426,6 @@
 </main>
 </div>
 
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2015</div>
-
 <script>
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const I18N = {
@@ -702,7 +700,7 @@ async function fetchCurrentUser() {
     const r = await fetch('https://api.atlassian.com/me', {
       headers: {'Authorization': `Bearer ${accessToken}`}
     });
-    if (!r.ok) return;
+    if (!r.ok) { if (assigneeMode === 'mine-unassigned') { assigneeMode = 'all'; document.getElementById('assignee-btn-mine').classList.remove('active'); document.getElementById('assignee-btn-all').classList.add('active'); } return; }
     const data = await r.json();
     currentUserAccountId = data.account_id || null;
     currentUserName = data.name || data.email || data.account_id || '';
@@ -711,7 +709,7 @@ async function fetchCurrentUser() {
       chip.textContent = '(' + currentUserName + ')';
       chip.classList.add('visible');
     }
-  } catch(e) { console.warn('[Support] Could not fetch current user:', e); }
+  } catch(e) { console.warn('[Support] Could not fetch current user:', e); if (assigneeMode === 'mine-unassigned') { assigneeMode = 'all'; document.getElementById('assignee-btn-mine').classList.remove('active'); document.getElementById('assignee-btn-all').classList.add('active'); } }
 }
 
 // ── Assignee filter ───────────────────────────────────────────────────────────
@@ -1736,6 +1734,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2015</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2030</div>
 </body>
 </html>
