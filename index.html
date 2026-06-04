@@ -458,7 +458,7 @@ const I18N = {
     tab_aging: '⚠ Aging', tab_resolved: '✓ Resolved',
     show_resolved: 'Show resolved:', show_aging: 'Aging threshold:',
     filter_actionable: 'Support Actionable', filter_eng_closed: 'Aging / Eng Closed',
-    filter_by_product: 'Product:', all_products: 'All',
+    filter_by_product: 'Queue:', all_products: 'All',
     filter_by_priority: 'Priority:',
     col_key: 'Key', col_summary: 'Summary', col_status: 'Status',
     col_priority: 'Priority', col_assignee: 'Assignee', col_updated: 'Updated',
@@ -497,7 +497,7 @@ const I18N = {
     tab_aging: '⚠ Aging', tab_resolved: '✓ Resueltos',
     show_resolved: 'Mostrar resueltos:', show_aging: 'Umbral aging:',
     filter_actionable: 'Accionable por Soporte', filter_eng_closed: 'Aging / Eng Cerrados',
-    filter_by_product: 'Producto:', all_products: 'Todos',
+    filter_by_product: 'Cola:', all_products: 'Todos',
     filter_by_priority: 'Prioridad:',
     col_key: 'Clave', col_summary: 'Resumen', col_status: 'Estado',
     col_priority: 'Prioridad', col_assignee: 'Asignado', col_updated: 'Actualizado',
@@ -1342,12 +1342,12 @@ function toggleEngClosedFilter() {
 // ── Product / Priority filter bars ───────────────────────────────────────────
 function updateProductFilterBar(tab) {
   const bar = document.getElementById('product-filter-bar');
-  const products = new Set();
+  const projects = new Set();
   Object.values(issueCache).forEach(issues => {
-    if (!issues) return;
-    issues.forEach(i => { (i.fields[CF_PRODUCT] || []).forEach(p => products.add(p.value)); });
+    if (!Array.isArray(issues)) return;
+    issues.forEach(i => { if (i?.fields?.project?.key) projects.add(i.fields.project.key); });
   });
-  if (!products.size) { bar.classList.remove('visible'); return; }
+  if (!projects.size) { bar.classList.remove('visible'); return; }
   bar.classList.add('visible');
   let html = `<span class="prod-filter-label">${t('filter_by_product')}</span>`;
   html += `<button class="prod-filter-btn${activeProductFilter===''?' active':''}" data-product="" onclick="setProductFilter('')">${t('all_products')}</button>`;
@@ -1441,7 +1441,7 @@ function renderTab(tab) {
   if (showEngClosed) issues = issues.filter(hasEngOrOpsClosedLink);
 
   // Product filter
-  if (activeProductFilter) issues = issues.filter(i => (i.fields[CF_PRODUCT]||[]).some(p => p.value === activeProductFilter));
+  if (activeProductFilter) issues = issues.filter(i => i.fields?.project?.key === activeProductFilter);
 
   // Priority filter
   if (activePriorityFilter) {
@@ -1643,7 +1643,7 @@ function copyTable(btn, tab) {
   }
   if (showActionable) issues = issues.filter(isActionableStatus);
   if (showEngClosed) issues = issues.filter(hasEngOrOpsClosedLink);
-  if (activeProductFilter) issues = issues.filter(i => (i.fields[CF_PRODUCT]||[]).some(p => p.value === activeProductFilter));
+  if (activeProductFilter) issues = issues.filter(i => i.fields?.project?.key === activeProductFilter);
   if (activePriorityFilter) {
     const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
     if (!BUCKET_TABS.includes(tab)) {
@@ -1977,6 +1977,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2341</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2342</div>
 </body>
 </html>
