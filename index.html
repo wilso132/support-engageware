@@ -422,7 +422,7 @@
 </main>
 </div>
 
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1800</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1900</div>
 
 <script>
 // ── i18n ──────────────────────────────────────────────────────────────────────
@@ -728,7 +728,13 @@ function assigneeJql() {
 
 function addAssigneeFilter(jql) {
   const af = assigneeJql();
-  return af ? jql + ' AND ' + af : jql;
+  if (!af) return jql;
+  // Must insert BEFORE ORDER BY clause (if present) — ORDER BY must be last in JQL
+  const orderByIdx = jql.toUpperCase().lastIndexOf(' ORDER BY ');
+  if (orderByIdx >= 0) {
+    return jql.slice(0, orderByIdx) + ' AND ' + af + jql.slice(orderByIdx);
+  }
+  return jql + ' AND ' + af;
 }
 
 // ── Customer / Org loading ────────────────────────────────────────────────────
@@ -919,13 +925,10 @@ function splitIntoBuckets(issues) {
     const upd = i.fields.updated || i.fields.created;
     return upd && (Date.now() - new Date(upd).getTime()) > agingDays * 86400000;
   }));
-  issueCache['resolved'] = done.filter(i => {
-    const d = getEffectiveResolvedDate(i);
-    return d && (Date.now() - d.getTime()) <= 365 * 86400000;
-  });
+  // Note: resolved bucket is managed separately (lazy load) — don't overwrite here
 
-  Object.keys(issueCache).forEach(k => updateCount(k, issueCache[k].length));
-  updateResolvedCount();
+  // Update counts for all buckets except resolved (which is lazy)
+  ['p1','p2','t1icp','t1','t2','t34','aging'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : 0));
 }
 
 function updateResolvedCount() {
@@ -945,35 +948,70 @@ async function loadAllBuckets() {
     const s = document.getElementById('stat-' + k); if (s) s.textContent = '…';
     const c = document.getElementById('cnt-' + k); if (c) c.textContent = '…';
   });
+  // Mark resolved as not-yet-loaded (null = never fetched, [] = fetched but empty)
+  issueCache['resolved'] = null;
+  updateCount('resolved', '—');
   document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="loading"><div class="spinner"></div><br>${t('loading')}</div></div>`;
 
-  // Build base JQL for this context
+  // Build base JQL — open tickets only
   const contextFilter = selectedOrg ? orgJql(selectedOrg) : customerJql(ctx);
-  let baseJql = `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory != Done`;
+  let baseJql = `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory != Done ORDER BY created ASC`;
   baseJql = addAssigneeFilter(baseJql);
 
-  // Resolved: separate query
-  let resolvedJql = `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-365d"`;
-  resolvedJql = addAssigneeFilter(resolvedJql);
-
   try {
-    const [openIssues, resolvedIssues] = await Promise.all([
-      searchIssues(baseJql + ' ORDER BY created ASC'),
-      searchIssues(resolvedJql + ' ORDER BY resolutiondate DESC'),
-    ]);
-
-    const allIssues = [...openIssues, ...resolvedIssues];
-    splitIntoBuckets(allIssues);
-
-    // SLA: use resolved issues from last 90 days
-    slaCache = resolvedIssues;
-    updateSlaPanel();
+    const openIssues = await searchIssues(baseJql);
+    splitIntoBuckets(openIssues);
     updateProductFilterBar(currentTab);
     updatePriorityFilterBar(currentTab);
     renderTab(currentTab);
+
+    // Fetch SLA data in background (non-blocking) after open tickets display
+    loadSlaBackground(contextFilter);
   } catch(e) {
     document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="empty" style="color:var(--danger)">Error loading tickets: ${escHtml(e.message)}</div></div>`;
   }
+}
+
+// Lazy resolved fetch — called when user clicks Resolved tab
+async function loadResolvedBucket() {
+  const ctx = selectedCustomer || selectedOrg;
+  if (!ctx && !activePreset) return;
+
+  const contextFilter = activePreset ? null : (selectedOrg ? orgJql(selectedOrg) : customerJql(ctx));
+  let jql = contextFilter
+    ? `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-365d" ORDER BY resolutiondate DESC`
+    : `project in ${jqlProjects(SUPPORT_PROJECTS)} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
+  jql = addAssigneeFilter(jql);
+
+  try {
+    const issues = await searchIssues(jql);
+    issueCache['resolved'] = issues;
+    slaCache = issues;
+    updateResolvedCount();
+    updateSlaPanel();
+    if (currentTab === 'resolved') renderTab('resolved');
+  } catch(e) {
+    issueCache['resolved'] = [];
+    updateCount('resolved', '!');
+  }
+}
+
+// Non-blocking SLA background fetch (for preset mode where we don't have context-filtered resolved)
+async function loadSlaBackground(contextFilter) {
+  if (slaCache) return;
+  try {
+    let jql = contextFilter
+      ? `project in ${jqlProjects(SUPPORT_PROJECTS)} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
+      : `project in ${jqlProjects(SUPPORT_PROJECTS)} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
+    jql = addAssigneeFilter(jql);
+    slaCache = await searchIssues(jql);
+    updateSlaPanel();
+    // Also populate resolved cache from this fetch if not already done
+    if (!issueCache['resolved']) {
+      issueCache['resolved'] = slaCache;
+      updateResolvedCount();
+    }
+  } catch(e) { slaCache = []; }
 }
 
 // ── SLA Panel ─────────────────────────────────────────────────────────────────
@@ -1101,9 +1139,8 @@ async function loadPreset(key, forceReload) {
     splitIntoBuckets(issues);
     if (btn) btn.classList.remove('loading');
 
-    // Fetch resolved tickets for SLA if not in cache
-    await loadSlaCacheForPreset();
-    updateSlaPanel();
+    // Fetch SLA data in background (non-blocking)
+    loadSlaBackground(null);
     updateProductFilterBar(currentTab);
     updatePriorityFilterBar(currentTab);
     renderTab(currentTab);
@@ -1111,14 +1148,6 @@ async function loadPreset(key, forceReload) {
     if (btn) btn.classList.remove('loading');
     document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="empty" style="color:var(--danger)">Error: ${escHtml(e.message)}</div></div>`;
   }
-}
-
-async function loadSlaCacheForPreset() {
-  if (slaCache) return;
-  try {
-    const jql = `project in ${jqlProjects(SUPPORT_PROJECTS)} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
-    slaCache = await searchIssues(jql);
-  } catch(e) { slaCache = []; }
 }
 
 // ── Count / stat update ───────────────────────────────────────────────────────
@@ -1140,6 +1169,11 @@ function switchTab(tab) {
   updateURL();
   updateProductFilterBar(tab);
   updatePriorityFilterBar(tab);
+  // Lazy-load resolved tickets on first click of that tab
+  if (tab === 'resolved' && issueCache['resolved'] === null) {
+    loadResolvedBucket();
+    return; // renderTab will be called by loadResolvedBucket when done
+  }
   renderTab(tab);
 }
 
@@ -1644,6 +1678,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1800</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.1900</div>
 </body>
 </html>
