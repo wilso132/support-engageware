@@ -285,7 +285,7 @@
   <hr class="section-divider">
 
   <!-- SLA Metrics Panel -->
-  <div id="sla-panel" style="display:none">
+  <div id="sla-panel">
     <div class="sla-panel-label" data-i18n="sla_label">SLA Performance</div>
     <div class="sla-grid">
       <div class="sla-card">
@@ -338,7 +338,7 @@
   </div>
 
   <!-- Stat tiles -->
-  <div class="stats-row" id="stats-row" style="display:none">
+  <div class="stats-row" id="stats-row">
     <div class="stat-card clickable-stat" onclick="switchTab('queue')" title="Work Queue">
       <div class="stat-label">📋 Queue</div>
       <div class="stat-value" id="stat-queue">…</div>
@@ -378,7 +378,7 @@
   </div>
 
   <!-- Bucket tabs -->
-  <div class="bucket-tabs" id="bucket-tabs" style="display:none">
+  <div class="bucket-tabs" id="bucket-tabs">
     <button class="tab-btn active" id="tab-queue" onclick="switchTab('queue')">📋 Work Queue <span class="count" id="cnt-queue">…</span></button>
     <button class="tab-btn" id="tab-p1" onclick="switchTab('p1')">🔴 P1 <span class="count" id="cnt-p1">…</span></button>
     <button class="tab-btn" id="tab-p2" onclick="switchTab('p2')">🟠 P2 <span class="count" id="cnt-p2">…</span></button>
@@ -820,9 +820,9 @@ function selectCustomer(name) {
   document.getElementById('customer-dropdown-list').classList.remove('open');
   document.getElementById('badge-name').textContent = name;
   document.getElementById('customer-badge').classList.add('visible');
-  document.getElementById('stats-row').style.display = 'grid';
-  document.getElementById('bucket-tabs').style.display = 'flex';
-  document.getElementById('sla-panel').style.display = 'block';
+  
+  
+  
   localStorage.setItem('sup_customer', name);
   localStorage.removeItem('sup_org'); localStorage.removeItem('sup_preset');
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
@@ -837,9 +837,9 @@ function selectOrg(name) {
   document.getElementById('org-dropdown-list').classList.remove('open');
   document.getElementById('badge-name').textContent = name;
   document.getElementById('customer-badge').classList.add('visible');
-  document.getElementById('stats-row').style.display = 'grid';
-  document.getElementById('bucket-tabs').style.display = 'flex';
-  document.getElementById('sla-panel').style.display = 'block';
+  
+  
+  
   localStorage.setItem('sup_org', name);
   localStorage.removeItem('sup_customer'); localStorage.removeItem('sup_preset');
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
@@ -851,9 +851,9 @@ function clearCustomer() {
   issueCache = {}; slaCache = null;
   localStorage.removeItem('sup_customer'); localStorage.removeItem('sup_org'); localStorage.removeItem('sup_tab');
   document.getElementById('customer-badge').classList.remove('visible');
-  document.getElementById('stats-row').style.display = 'none';
-  document.getElementById('bucket-tabs').style.display = 'none';
-  document.getElementById('sla-panel').style.display = 'none';
+  
+  
+  
   document.getElementById('issues-panel').innerHTML = '';
   document.getElementById('customer-search').value = '';
   document.getElementById('org-search').value = '';
@@ -1105,9 +1105,9 @@ async function loadPreset(key, forceReload) {
   document.getElementById('customer-badge').classList.remove('visible');
   document.getElementById('customer-search').value = '';
   document.getElementById('org-search').value = '';
-  document.getElementById('stats-row').style.display = 'grid';
-  document.getElementById('bucket-tabs').style.display = 'flex';
-  document.getElementById('sla-panel').style.display = 'block';
+  
+  
+  
   ['p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => { updateCount(k, '…'); });
   document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="loading"><div class="spinner"></div><br>${t('loading')}</div></div>`;
   updateURL();
@@ -1191,12 +1191,16 @@ function switchTab(tab) {
 // ── Filter toggles ────────────────────────────────────────────────────────────
 function toggleActionableFilter() {
   showActionable = !showActionable;
+  // Mutually exclusive: turning on Actionable turns off Eng Closed
+  if (showActionable) { showEngClosed = false; localStorage.setItem('sup_eng_closed', 'false'); document.getElementById('filter-eng-closed').classList.remove('active'); }
   localStorage.setItem('sup_actionable', showActionable.toString());
   document.getElementById('filter-actionable').classList.toggle('active', showActionable);
   renderTab(currentTab);
 }
 function toggleEngClosedFilter() {
   showEngClosed = !showEngClosed;
+  // Mutually exclusive: turning on Eng Closed turns off Actionable
+  if (showEngClosed) { showActionable = false; localStorage.setItem('sup_actionable', 'false'); document.getElementById('filter-actionable').classList.remove('active'); }
   localStorage.setItem('sup_eng_closed', showEngClosed.toString());
   document.getElementById('filter-eng-closed').classList.toggle('active', showEngClosed);
   renderTab(currentTab);
@@ -1734,6 +1738,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2030</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2045</div>
 </body>
 </html>
