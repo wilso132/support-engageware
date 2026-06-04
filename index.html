@@ -179,7 +179,6 @@
   .age-medium { color:var(--warning); }
   .icp-badge { display:inline-block; background:rgba(124,58,237,.15); color:var(--accent2); border:1px solid rgba(124,58,237,.3); border-radius:4px; padding:1px 6px; font-size:10px; font-weight:600; margin-left:4px; }
   .tier-badge { display:inline-block; background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:10px; color:var(--muted); margin-left:4px; }
-
   .proj-filter-btn { padding:3px 8px; border-radius:4px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:11px; font-family:'IBM Plex Mono',monospace; cursor:pointer; transition:all .15s; }
   .proj-filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
   .proj-filter-btn:hover:not(.active) { border-color:var(--accent); color:var(--text); }
@@ -419,10 +418,6 @@
     <button class="filter-toggle-btn" id="filter-eng-closed" onclick="toggleEngClosedFilter()" title="Show tickets where linked Engineering/OPS ticket is resolved">
       🔗 <span data-i18n="filter_eng_closed">Aging / Eng Closed</span>
     </button>
-    <div class="filter-separator"></div>
-    <div id="project-filter-bar" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-      <span class="prod-filter-label">Projects:</span>
-    </div>
     <div class="filter-separator" id="filter-sep" style="display:none"></div>
     <div id="product-filter-bar"></div>
     <div id="priority-filter-bar" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;"></div>
@@ -591,6 +586,35 @@ let activeProjects   = JSON.parse(localStorage.getItem('sup_projects') || 'null'
 let issueCache       = {};  // tab -> issues[]
 let slaCache         = null; // resolved tickets for SLA computation
 let presetCache      = {};  // key -> {issues, ts}
+
+// ── Session cache (survives page refresh within TTL) ──────────────────────────
+function getCacheKey() {
+  return JSON.stringify({ preset: activePreset, customer: selectedCustomer, org: selectedOrg, assignee: assigneeMode, projects: [...activeProjects].sort() });
+}
+function saveCacheToSession() {
+  try {
+    sessionStorage.setItem('sup_cache_data', JSON.stringify(issueCache));
+    sessionStorage.setItem('sup_cache_ts', Date.now().toString());
+    sessionStorage.setItem('sup_cache_key', getCacheKey());
+  } catch(e) {}
+}
+function loadCacheFromSession() {
+  try {
+    const ts = parseInt(sessionStorage.getItem('sup_cache_ts') || '0');
+    if (Date.now() - ts > TICKET_TTL) return false;
+    const key = sessionStorage.getItem('sup_cache_key');
+    if (key !== getCacheKey()) return false;
+    const data = JSON.parse(sessionStorage.getItem('sup_cache_data') || 'null');
+    if (!data) return false;
+    return data;
+  } catch(e) { return false; }
+}
+function clearSessionCache() {
+  sessionStorage.removeItem('sup_cache_data');
+  sessionStorage.removeItem('sup_cache_ts');
+  sessionStorage.removeItem('sup_cache_key');
+}
+
 const TICKET_TTL     = 5 * 60 * 1000;   // 5 minutes for ticket data
 const PRESET_TTL     = 5 * 60 * 1000;   // 5 minutes for preset data
 const CUSTOMER_TTL   = 4 * 60 * 60 * 1000; // 4 hours for customer/org lists
@@ -713,7 +737,6 @@ function fetchCurrentUser() {
       currentUserAccountId = payload.sub || payload.account_id || null;
       if (currentUserAccountId) {
         // Try to get display name from token claims
-        // Don't show the raw account ID as display name — chip hidden if no real name
         currentUserName = payload.name || payload.email || '';
         if (currentUserName) {
           const chip = document.getElementById('current-user-chip');
@@ -883,7 +906,7 @@ function clearCustomer() {
 }
 
 function resetFilters() {
-  issueCache = {}; slaCache = null;
+  issueCache = {}; slaCache = null; clearSessionCache();
   activeProductFilter = ''; activePriorityFilter = '';
   sessionStorage.removeItem('sup_product_filter');
   sessionStorage.removeItem('sup_priority_filter');
@@ -1018,9 +1041,8 @@ async function loadAllBuckets() {
 // No assignee filter: resolved/SLA are org-wide team metrics
 async function loadResolvedBucket() {
   const ctx = selectedCustomer || selectedOrg;
-  if (!ctx && !activePreset) return;
-
-  const contextFilter = activePreset ? null : (selectedOrg ? orgJql(selectedOrg) : customerJql(ctx));
+  // contextFilter is null for default view (no customer/org/preset) — fetches all resolved tickets
+  const contextFilter = (ctx || activePreset) ? (activePreset ? null : (selectedOrg ? orgJql(selectedOrg) : customerJql(ctx))) : null;
   // 90d max — covers both the resolved tab (30d default, picker up to 90d) and SLA (needs 90d)
   const jql = contextFilter
     ? `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
@@ -1278,23 +1300,12 @@ function setPriorityFilter(priority) {
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
-// ── Project filter ────────────────────────────────────────────────────────────
-function initProjectFilter() {
-  const bar = document.getElementById('project-filter-bar');
-  if (!bar) return;
-  SUPPORT_PROJECTS.forEach(proj => {
-    const btn = document.createElement('button');
-    btn.className = 'proj-filter-btn' + (activeProjects.includes(proj) ? ' active' : '');
-    btn.textContent = proj;
-    btn.title = proj;
-    btn.onclick = () => toggleProject(proj, btn);
-    bar.appendChild(btn);
-  });
+function jqlActiveProjects() {
+  return '(' + activeProjects.map(p => '"' + p + '"').join(', ') + ')';
 }
-
 function toggleProject(proj, btn) {
   if (activeProjects.includes(proj)) {
-    if (activeProjects.length === 1) return; // keep at least one
+    if (activeProjects.length === 1) return;
     activeProjects = activeProjects.filter(p => p !== proj);
     btn.classList.remove('active');
   } else {
@@ -1304,9 +1315,16 @@ function toggleProject(proj, btn) {
   localStorage.setItem('sup_projects', JSON.stringify(activeProjects));
   reload();
 }
-
-function jqlActiveProjects() {
-  return '(' + activeProjects.map(p => '"' + p + '"').join(', ') + ')';
+function initProjectFilter() {
+  const bar = document.getElementById('project-filter-bar');
+  if (!bar) return;
+  SUPPORT_PROJECTS.forEach(proj => {
+    const btn = document.createElement('button');
+    btn.className = 'proj-filter-btn' + (activeProjects.includes(proj) ? ' active' : '');
+    btn.textContent = proj;
+    btn.onclick = () => toggleProject(proj, btn);
+    bar.appendChild(btn);
+  });
 }
 
 function renderTab(tab) {
@@ -1333,7 +1351,17 @@ function renderTab(tab) {
   if (activeProductFilter) issues = issues.filter(i => (i.fields[CF_PRODUCT]||[]).some(p => p.value === activeProductFilter));
 
   // Priority filter
-  if (activePriorityFilter) issues = issues.filter(i => getPriority(i) === activePriorityFilter);
+  if (activePriorityFilter) {
+    const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
+    if (!BUCKET_TABS.includes(tab)) {
+      // Flexible match: priority name contains filter string or vice versa (case-insensitive)
+      const pf = activePriorityFilter.toLowerCase();
+      issues = issues.filter(i => {
+        const pn = getPriority(i).toLowerCase();
+        return pn === pf || pn.includes(pf) || pf.includes(pn);
+      });
+    }
+  }
 
   updateProductFilterBar(tab);
   updatePriorityFilterBar(tab);
@@ -1522,7 +1550,17 @@ function copyTable(btn, tab) {
   if (showActionable) issues = issues.filter(isActionableStatus);
   if (showEngClosed) issues = issues.filter(hasEngOrOpsClosedLink);
   if (activeProductFilter) issues = issues.filter(i => (i.fields[CF_PRODUCT]||[]).some(p => p.value === activeProductFilter));
-  if (activePriorityFilter) issues = issues.filter(i => getPriority(i) === activePriorityFilter);
+  if (activePriorityFilter) {
+    const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
+    if (!BUCKET_TABS.includes(tab)) {
+      // Flexible match: priority name contains filter string or vice versa (case-insensitive)
+      const pf = activePriorityFilter.toLowerCase();
+      issues = issues.filter(i => {
+        const pn = getPriority(i).toLowerCase();
+        return pn === pf || pn.includes(pf) || pf.includes(pn);
+      });
+    }
+  }
   if (!issues.length) return;
 
   const showCust = !!activePreset;
@@ -1605,6 +1643,19 @@ function updateURL() {
 
 // ── Default view (auto-loads on page open with no saved state) ───────────────
 async function loadDefaultView() {
+  // Try session cache first
+  const cached = loadCacheFromSession();
+  if (cached) {
+    issueCache = cached;
+    updateProductFilterBar(currentTab);
+    updatePriorityFilterBar(currentTab);
+    renderTab(currentTab);
+    ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : (k==='resolved'?'—':0)));
+    updateResolvedCount();
+    if (!slaCache && issueCache['resolved']) { slaCache = issueCache['resolved']; updateSlaPanel(); }
+    updateURL();
+    return;
+  }
   // Show loading state in issues panel
   const panel = document.getElementById('issues-panel');
   if (panel) panel.innerHTML = '<div class="table-container"><div class="loading"><div class="spinner"></div><br>Loading tickets…</div></div>';
@@ -1620,7 +1671,8 @@ async function loadDefaultView() {
     updatePriorityFilterBar(currentTab);
     renderTab(currentTab);
     loadSlaBackground(null);
-    updateURL(); // Reflect restored state in URL
+    saveCacheToSession();
+    updateURL();
   } catch(e) {
     if (panel) panel.innerHTML = '<div class="table-container"><div class="empty" style="color:var(--danger)">Error loading tickets: ' + escHtml(e.message) + '</div></div>';
   }
@@ -1696,7 +1748,7 @@ function restoreFromState() {
   if (matchedCustomer) { restoreTab(savedTab); selectCustomer(matchedCustomer); }
   else if (matchedOrg) { restoreTab(savedTab); selectOrg(matchedOrg); }
   else if (savedPreset && getPresetQueries()[savedPreset]) { restoreTab(savedTab); loadPreset(savedPreset); }
-  else { loadDefaultView(); } // No saved state — load default view automatically
+  else { restoreTab(savedTab); loadDefaultView(); } // No saved state — load default view automatically
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1771,7 +1823,7 @@ async function initApp() {
   document.getElementById('filter-eng-closed').classList.toggle('active', showEngClosed);
 
   // Load user info + customer/org lists in parallel
-  fetchCurrentUser(); initProjectFilter(); await Promise.all([loadCustomers(), loadOrgs()]);
+  fetchCurrentUser(); await Promise.all([loadCustomers(), loadOrgs()]);
 
   // Wire search boxes
   wireSearchBox('customer-search','customer-dropdown-list', allCustomers, selectCustomer);
@@ -1813,6 +1865,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2200</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2215</div>
 </body>
 </html>
