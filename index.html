@@ -426,7 +426,7 @@
 </main>
 </div>
 
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2000</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2015</div>
 
 <script>
 // ── i18n ──────────────────────────────────────────────────────────────────────
@@ -1339,6 +1339,7 @@ function renderTab(tab) {
       ${showCustomerCol?`<th>${t('col_customer')}</th>`:''}
       <th>${t('col_created')}</th>
       <th>${t('col_product')}</th>
+      <th>Linked Tickets</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
@@ -1414,6 +1415,24 @@ function renderRow(issue, tab, showCustomerCol) {
   const icpHtml  = icp && icp.toLowerCase() === 'yes' ? `<span class="icp-badge">ICP</span>` : '';
   const engClosedHtml = engClosed ? `<span class="eng-closed-badge">Eng ✓</span>` : '';
 
+  // Linked tickets: Eng + OPS links only, hyperlinked, strikethrough if done
+  const linkedHtml = (() => {
+    const links = f.issuelinks || [];
+    const items = [];
+    for (const link of links) {
+      const linked = link.inwardIssue || link.outwardIssue;
+      if (!linked) continue;
+      const proj = (linked.key || '').split('-')[0];
+      if (!ENGINEERING_PROJECTS.includes(proj) && !OPS_PROJECTS.includes(proj)) continue;
+      const isDone = linked.fields && linked.fields.status && linked.fields.status.statusCategory && linked.fields.status.statusCategory.key === 'done';
+      const lUrl = `https://engageware.atlassian.net/browse/${linked.key}`;
+      const statusName = (linked.fields && linked.fields.status && linked.fields.status.name) || '';
+      const style = isDone ? 'text-decoration:line-through;color:var(--muted)' : 'color:var(--accent)';
+      items.push(`<a href="${lUrl}" target="_blank" rel="noopener" style="font-family:IBM Plex Mono,monospace;font-size:11px;display:block;${style}" title="${escHtml(statusName)}">${linked.key}</a>`);
+    }
+    return items.length ? `<div style="min-width:80px">${items.join('')}</div>` : '<span style="color:var(--muted)">—</span>';
+  })();
+
   let commentHtml = '';
   if (showComments) {
     const comments = (f.comment && f.comment.comments) || [];
@@ -1437,6 +1456,7 @@ function renderRow(issue, tab, showCustomerCol) {
     ${showCustomerCol ? `<td style="font-size:12px;color:var(--muted)">${escHtml(customers)}</td>` : ''}
     <td style="font-size:12px;color:var(--muted);white-space:nowrap">${createdDate}<br><span style="color:var(--muted);font-size:10px">${ageOpenDays}d open</span></td>
     <td>${productHtml}</td>
+    <td>${linkedHtml}</td>
   </tr>${commentHtml}`;
 }
 
@@ -1716,6 +1736,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2000</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2015</div>
 </body>
 </html>
