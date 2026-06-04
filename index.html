@@ -752,14 +752,8 @@ function fetchCurrentUser() {
       }
     }
   } catch(e) { console.warn('[Support] Could not decode token:', e); }
-  // Fallback: no account ID — default to All Tickets so nothing is filtered out
-  if (assigneeMode === 'mine-unassigned') {
-    assigneeMode = 'all';
-    const mine = document.getElementById('assignee-btn-mine');
-    const all  = document.getElementById('assignee-btn-all');
-    if (mine) mine.classList.remove('active');
-    if (all)  all.classList.add('active');
-  }
+  // No account ID — assigneeJql() will return '' so all tickets are shown.
+  // Keep assigneeMode unchanged to preserve cache key consistency across reloads.
 }
 
 // ── Assignee filter ───────────────────────────────────────────────────────────
@@ -774,7 +768,7 @@ function setAssigneeMode(mode) {
 
 function assigneeJql() {
   if (assigneeMode === 'all') return '';
-  if (!currentUserAccountId) return 'assignee is EMPTY';
+  if (!currentUserAccountId) return ''; // No account ID — show all tickets (can't filter by user)
   return `(assignee = "${currentUserAccountId}" OR assignee is EMPTY)`;
 }
 
@@ -1057,6 +1051,7 @@ async function loadResolvedBucket() {
   const SLA_FIELDS = 'summary,status,priority,created,resolutiondate,statuscategorychangedate,project';
   try {
     showSlaLoading();
+    showSlaLoading();
     console.log('[SLA] Fetching resolved tickets...');
     const issues = await searchIssues(jql, SLA_FIELDS, 500);
     console.log('[SLA] Got', issues.length, 'resolved tickets');
@@ -1114,7 +1109,7 @@ function updateSlaPanel() {
         return;
       }
       const { pct, avgDays } = result;
-      const slaDays = priority === 'p1' ? 4/24 : priority === 'p2' ? 1 : 5;
+      const slaDays = p === 'p1' ? 4/24 : p === 'p2' ? 1 : 5;
       // Main number: avg days (color-coded against SLA threshold)
       const ratio = avgDays / slaDays;
       const colorClass = ratio <= 0.75 ? 'good' : ratio <= 1.0 ? 'warn' : 'bad';
@@ -1433,7 +1428,7 @@ function renderTab(tab) {
     resolved: `${t('tab_title_resolved')} ${resolvedDays}d`,
   };
 
-  const showCustomerCol = !!activePreset;
+  const showCustomerCol = true; // Always show customer column
 
   // For Work Queue: render with section headers between priority/tier groups
   let rows;
@@ -1499,7 +1494,7 @@ function renderQueueRows(issues, showCustomerCol) {
     { key: 't2',    label: 'Tier 2', filter: i => !isP1(i) && !isP2(i) && getTier(i).includes('2') },
     { key: 't34',   label: 'Tier 3 / 4', filter: i => !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2') },
   ];
-  const colSpan = 10 + (showCustomerCol ? 1 : 0);
+  const colSpan = 11; // 10 base cols + customer always shown
   return SECTIONS.map(section => {
     const sectionIssues = issues.filter(section.filter);
     if (!sectionIssues.length) return '';
@@ -1706,11 +1701,17 @@ async function loadDefaultView() {
     renderTab(currentTab);
     ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : (k==='resolved'?'—':0)));
     updateResolvedCount();
-    if (issueCache['resolved'] && issueCache['resolved'].length) { slaCache = issueCache['resolved']; updateSlaPanel(); }
+    if (issueCache['resolved'] && issueCache['resolved'].length) {
+      slaCache = issueCache['resolved'];
+      hideSlaLoading();
+      updateSlaPanel();
+    } else {
+      // Cache has no SLA data yet — fetch in background
+      loadSlaBackground(null);
+    }
     updateURL();
     return;
   }
-  showSlaLoading(); // Show SLA loading immediately
   // Show loading state in issues panel
   const panel = document.getElementById('issues-panel');
   if (panel) panel.innerHTML = '<div class="table-container"><div class="loading"><div class="spinner"></div><br>Loading tickets…</div></div>';
@@ -1930,6 +1931,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2325</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2330</div>
 </body>
 </html>
