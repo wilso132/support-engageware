@@ -246,6 +246,7 @@
         <button class="assignee-btn" id="assignee-btn-all" onclick="setAssigneeMode('all')" data-i18n="assignee_all">All Tickets</button>
       </div>
       <span id="current-user-chip"></span>
+      <button id="clear-state-btn" onclick="clearAllState()" style="display:none;margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;" onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">✕ Clear All Filters</button>
     </div>
   </div>
 
@@ -415,8 +416,6 @@
 
   <!-- Active filter toolbar -->
   <div id="active-filter-bar">
-    <button class="filter-toggle-btn" id="filter-comments" onclick="toggleComments()" title="Show last comment for each ticket">💬 <span>Last Comment</span></button>
-    <div class="filter-separator"></div>
     <button class="filter-toggle-btn active" id="filter-actionable" onclick="toggleActionableFilter()" title="Hide tickets waiting on customer or engineering">
       ✓ <span data-i18n="filter_actionable">Support Actionable</span>
     </button>
@@ -769,7 +768,7 @@ function setAssigneeMode(mode) {
   document.getElementById('assignee-btn-mine').classList.toggle('active', mode === 'mine-unassigned');
   document.getElementById('assignee-btn-all').classList.toggle('active', mode === 'all');
   updateURL();
-  if (selectedCustomer || selectedOrg || activePreset) reload();
+  if (selectedCustomer || selectedOrg || activePreset) reload(); else loadDefaultView();
 }
 
 function assigneeJql() {
@@ -1054,14 +1053,18 @@ async function loadResolvedBucket() {
     : `project in ${jqlActiveProjects()} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
   // NOTE: no addAssigneeFilter here — resolved/SLA must be org-wide
 
+  const SLA_FIELDS = 'summary,status,priority,created,resolutiondate,statuscategorychangedate,project';
   try {
-    const issues = await searchIssues(jql);
+    console.log('[SLA] Fetching resolved tickets...');
+    const issues = await searchIssues(jql, SLA_FIELDS, 500);
+    console.log('[SLA] Got', issues.length, 'resolved tickets');
     issueCache['resolved'] = issues;
     slaCache = issues;
     updateResolvedCount();
     updateSlaPanel();
     if (currentTab === 'resolved') renderTab('resolved');
   } catch(e) {
+    console.error('[SLA] Error:', e.message);
     issueCache['resolved'] = [];
     updateCount('resolved', '!');
   }
@@ -1238,14 +1241,6 @@ function switchTab(tab) {
 }
 
 // ── Filter toggles ────────────────────────────────────────────────────────────
-
-function toggleComments() {
-  showComments = !showComments;
-  localStorage.setItem('sup_comments', showComments.toString());
-  document.getElementById('filter-comments').classList.toggle('active', showComments);
-  renderTab(currentTab);
-}
-
 function toggleActionableFilter() {
   showActionable = !showActionable;
   localStorage.setItem('sup_actionable', showActionable.toString());
@@ -1410,6 +1405,13 @@ function renderTab(tab) {
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span class="table-meta">${issues.length} ${issues.length!==1?t('issues_suffix'):t('issue_suffix')}</span>
 
+      <label class="comment-toggle-wrap" title="Show last comment for each ticket">
+        <span data-i18n="last_comment">${t('last_comment')}</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="comment-toggle" ${showComments?'checked':''}>
+          <span class="toggle-track"></span>
+        </span>
+      </label>
       <button class="copy-btn" id="copy-btn-${tab}" onclick="copyTable(this,'${tab}')">${t('copy')}</button>
     </div>
   </div>
@@ -1433,7 +1435,13 @@ function renderTab(tab) {
   </div>
 </div>`;
 
-
+  // Wire comment toggle
+  const ct = document.getElementById('comment-toggle');
+  if (ct) ct.addEventListener('change', () => {
+    showComments = ct.checked;
+    localStorage.setItem('sup_comments', showComments.toString());
+    renderTab(currentTab);
+  });
 }
 
 // Renders Work Queue with section dividers between priority/tier groups
@@ -1679,6 +1687,13 @@ async function loadDefaultView() {
   }
 }
 
+function clearAllState() {
+  ['sup_customer','sup_org','sup_preset','sup_tab','sup_assignee_mode',
+   'sup_product_filter','sup_priority_filter','sup_projects'].forEach(k => localStorage.removeItem(k));
+  clearSessionCache();
+  window.location.href = window.location.pathname;
+}
+
 function restoreFromState() {
   const urlCustomer  = sessionStorage.getItem('sup_pending_customer');
   const urlOrg       = sessionStorage.getItem('sup_pending_org');
@@ -1787,6 +1802,7 @@ async function initApp() {
   document.getElementById('auth-btn').textContent = t('sign_out');
   document.getElementById('auth-btn').onclick = logout;
   document.getElementById('auth-btn').className = 'secondary';
+  const clearBtn = document.getElementById('clear-state-btn'); if (clearBtn) clearBtn.style.display = 'inline-block';
 
   // Show assignee row
   document.getElementById('assignee-row').style.display = 'flex';
@@ -1868,6 +1884,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2275</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2290</div>
 </body>
 </html>
