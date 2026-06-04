@@ -1051,7 +1051,6 @@ async function loadResolvedBucket() {
   const SLA_FIELDS = 'summary,status,priority,created,resolutiondate,statuscategorychangedate,project';
   try {
     showSlaLoading();
-    showSlaLoading();
     console.log('[SLA] Fetching resolved tickets...');
     const issues = await searchIssues(jql, SLA_FIELDS, 500);
     console.log('[SLA] Got', issues.length, 'resolved tickets');
@@ -1692,6 +1691,7 @@ function updateURL() {
 
 // ── Default view (auto-loads on page open with no saved state) ───────────────
 async function loadDefaultView() {
+  showSlaLoading(); // Always show spinner — replaced by data instantly if cached
   // Try session cache first
   const cached = loadCacheFromSession();
   if (cached) {
@@ -1931,6 +1931,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2330</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2335</div>
 </body>
 </html>
