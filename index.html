@@ -552,10 +552,10 @@ const CF_PRODUCT  = 'customfield_12284';
 const CF_CUST_OUT = 'customfield_10100';
 
 // Priority groups
-const P1_PRIOS = ['P1','Critical','Highest'];
-const P2_PRIOS = ['P2','High'];
-const P3_PRIOS = ['P3','Medium'];
-const P4_PRIOS = ['P4','Low','Lowest'];
+const P1_PRIOS = ['P1','Critical','Highest','Critical (P1)'];
+const P2_PRIOS = ['P2','High','High (P2)'];
+const P3_PRIOS = ['P3','Medium','Medium (P3)'];
+const P4_PRIOS = ['P4','Low','Lowest','Low (P4)'];
 
 // Statuses NOT actionable by support (waiting on someone else)
 const NON_ACTIONABLE_STATUSES = [
@@ -1668,7 +1668,7 @@ async function loadDefaultView() {
   // Show loading state in issues panel
   const panel = document.getElementById('issues-panel');
   if (panel) panel.innerHTML = '<div class="table-container"><div class="loading"><div class="spinner"></div><br>Loading tickets…</div></div>';
-  ['queue','p1','p2','t1icp','t1','t2','t34','aging'].forEach(k => { updateCount(k, '…'); });
+  ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => { updateCount(k, '…'); }); updateCount('resolved', '—');
   issueCache['resolved'] = null; updateCount('resolved', '—');
 
   let jql = `project in ${jqlActiveProjects()} AND statusCategory != Done ORDER BY created ASC`;
@@ -1884,6 +1884,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2290</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2300</div>
 </body>
 </html>
