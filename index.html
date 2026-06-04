@@ -1739,7 +1739,7 @@ function updateURL() {
 async function loadDefaultView() {
   showSlaLoading(); // Always show spinner — replaced by data instantly if cached
   // Try session cache first
-  const cached = loadCacheFromSession();
+  const cached = await loadCacheFromSession();
   if (cached) {
     issueCache = cached;
     updateProductFilterBar(currentTab);
@@ -1977,6 +1977,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2340</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2341</div>
 </body>
 </html>
