@@ -1232,6 +1232,16 @@ function switchTab(tab) {
   updateURL();
   updateProductFilterBar(tab);
   updatePriorityFilterBar(tab);
+  // Update stat tile for current tab to show filtered count
+  const filteredStatEl = document.getElementById('stat-' + tab);
+  const filteredCntEl  = document.getElementById('cnt-' + tab);
+  if (filteredStatEl && issueCache[tab]) {
+    const rawLen = issueCache[tab].length;
+    if (issues.length !== rawLen) {
+      filteredStatEl.textContent = issues.length + ' / ' + rawLen;
+      if (filteredCntEl) filteredCntEl.textContent = issues.length + ' / ' + rawLen;
+    }
+  }
   // Lazy-load resolved tickets on first click of that tab
   if (tab === 'resolved' && issueCache['resolved'] === null) {
     loadResolvedBucket();
@@ -1884,6 +1894,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2300</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2310</div>
 </body>
 </html>
