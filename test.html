@@ -1,0 +1,2146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="Engageware_Heart.png" type="image/png">
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Engageware Support Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #4f6ef7;
+    --accent2: #7c3aed;
+    --text: #e8eaf6;
+    --muted: #6b7280;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #3b82f6;
+  }
+  [data-theme="light"] {
+    --bg: #f5f6fa; --surface: #ffffff; --surface2: #eef0f8; --border: #d5d9ee;
+    --accent: #4f6ef7; --accent2: #7c3aed; --text: #1a1d2e; --muted: #5a6072;
+    --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+  }
+  .theme-toggle { background:none; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:5px 10px; cursor:pointer; font-size:16px; line-height:1; transition:border-color .2s; margin-right:8px; }
+  .theme-toggle:hover { border-color:var(--accent); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'IBM Plex Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* ── Header ── */
+  header { display:flex; align-items:center; justify-content:space-between; padding:1rem 2rem; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:100; }
+  .logo { font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--accent); letter-spacing:.05em; }
+  .logo span { color:var(--muted); }
+  #auth-btn { background:var(--accent); color:#fff; border:none; padding:8px 18px; border-radius:6px; font-size:13px; font-family:'IBM Plex Sans',sans-serif; cursor:pointer; font-weight:500; transition:opacity .15s; }
+  #auth-btn:hover { opacity:.85; }
+  #auth-btn.secondary { background:transparent; border:1px solid var(--border); color:var(--muted); font-size:12px; }
+  main { max-width:1280px; margin:0 auto; padding:2rem; }
+
+  /* ── Auth screen ── */
+  #auth-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center; gap:1rem; }
+  #auth-screen h2 { font-size:24px; font-weight:500; }
+  #auth-screen p { color:var(--muted); font-size:14px; max-width:380px; line-height:1.6; }
+  #auth-screen .connect-btn { margin-top:1rem; background:var(--accent); color:#fff; border:none; padding:12px 28px; border-radius:8px; font-size:15px; font-family:'IBM Plex Sans',sans-serif; cursor:pointer; font-weight:500; transition:opacity .15s; }
+  #auth-screen .connect-btn:hover { opacity:.85; }
+
+  /* ── Assignee toggle row ── */
+  #assignee-row { display:flex; align-items:center; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap; }
+  .assignee-section-label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; flex-shrink:0; }
+  .assignee-btn-group { display:flex; gap:6px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:3px; }
+  .assignee-btn { padding:5px 12px; border-radius:5px; border:none; background:none; color:var(--muted); font-size:12px; font-family:'IBM Plex Sans',sans-serif; cursor:pointer; font-weight:500; transition:all .15s; white-space:nowrap; }
+  .assignee-btn:hover { color:var(--text); }
+  .assignee-btn.active { background:var(--accent); color:#fff; }
+  #current-user-chip { font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace; display:none; }
+  #current-user-chip.visible { display:inline; }
+
+  /* ── Preset filters ── */
+  #preset-section { margin-bottom:0; }
+  .preset-section-label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+  .preset-buttons { display:flex; flex-wrap:wrap; gap:8px; }
+  .preset-btn { padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text); font-size:12px; cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:6px; }
+  .preset-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .preset-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .preset-btn .preset-spinner { width:10px; height:10px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; display:none; }
+  .preset-btn.loading .preset-spinner { display:inline-block; }
+
+  /* ── Dividers ── */
+  .or-divider-row { display:flex; align-items:center; margin:1.25rem 0 1rem; }
+  .or-divider-row::before,.or-divider-row::after { content:''; flex:1; height:1px; background:var(--border); }
+  .or-divider-text { padding:0 12px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); white-space:nowrap; }
+  .section-divider { border:none; border-top:1px solid var(--border); margin:1.5rem 0; }
+  .or-separator { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; flex-shrink:0; align-self:flex-end; padding-bottom:2px; }
+  .or-separator::before,.or-separator::after { content:''; flex:1; height:1px; background:var(--border); min-width:16px; }
+
+  /* ── Search section ── */
+  #picker-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:2rem; flex-wrap:wrap; }
+  .search-box-wrap { flex:1; min-width:200px; position:relative; }
+  .search-box-label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+  #customer-search,#org-search { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:15px; font-family:'IBM Plex Sans',sans-serif; color:var(--text); outline:none; transition:border-color .15s; width:100%; }
+  #customer-search:focus,#org-search:focus { border-color:var(--accent); }
+  #customer-search::placeholder,#org-search::placeholder { color:var(--muted); }
+  #customer-dropdown,#org-dropdown { position:relative; }
+  .dropdown-list { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--surface2); border:1px solid var(--border); border-radius:8px; max-height:280px; overflow-y:auto; z-index:200; display:none; }
+  .dropdown-list.open { display:block; }
+  .dropdown-item { padding:9px 14px; font-size:13px; cursor:pointer; transition:background .1s; }
+  .dropdown-item:hover,.dropdown-item.selected { background:var(--border); }
+
+
+  /* ── SLA Panel ── */
+  #sla-panel { margin-bottom:1.5rem; }
+  .sla-panel-label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+  .sla-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+  .sla-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.75rem 1rem; }
+  .sla-card-title { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .sla-windows { display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  .sla-window { font-size:11px; color:var(--muted); }
+  .sla-pct { font-size:20px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+  .sla-pct.good { color:var(--success); }
+  .sla-pct.warn { color:var(--warning); }
+  .sla-pct.bad  { color:var(--danger); }
+  .sla-pct.na   { color:var(--muted); font-size:14px; }
+  .sla-loading { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--muted); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-bottom:2px; }
+  .sla-sub { font-size:10px; color:var(--muted); }
+
+  /* ── Stats row ── */
+  .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:1.25rem; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.875rem 1rem; }
+  .stat-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .stat-value { font-size:24px; font-weight:600; font-family:'IBM Plex Mono',monospace; }
+  .clickable-stat { cursor:pointer; transition:opacity .15s; }
+  .clickable-stat:hover { opacity:.7; }
+  .stat-value.danger { color:var(--danger); }
+  .stat-value.warning { color:var(--warning); }
+  .stat-value.success { color:var(--success); }
+  .stat-value.info { color:var(--info); }
+
+  /* ── Bucket tabs ── */
+  .bucket-tabs { display:flex; gap:6px; margin-bottom:1rem; flex-wrap:wrap; }
+  .tab-btn { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 12px; font-size:12px; font-family:'IBM Plex Sans',sans-serif; color:var(--muted); cursor:pointer; transition:all .15s; font-weight:500; }
+  .tab-btn:hover { border-color:var(--accent); color:var(--text); }
+  .tab-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .tab-btn .count { display:inline-block; background:rgba(255,255,255,.2); border-radius:10px; padding:1px 6px; font-size:10px; margin-left:4px; }
+  .tab-btn:not(.active) .count { background:var(--surface2); color:var(--muted); }
+
+  /* ── Day pickers ── */
+  .day-picker-wrap { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); flex-shrink:0; margin-bottom:.75rem; }
+  .day-btn { padding:3px 8px; border-radius:4px; border:1px solid var(--border); background:none; color:var(--muted); font-size:11px; font-family:'IBM Plex Mono',monospace; cursor:pointer; transition:all .15s; }
+  .day-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .day-btn:hover:not(.active) { border-color:var(--accent); color:var(--text); }
+
+  /* ── Active filter toolbar ── */
+  #active-filter-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:.75rem; }
+  .filter-toggle-btn { padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--muted); font-size:11px; font-family:'IBM Plex Sans',sans-serif; cursor:pointer; transition:all .15s; font-weight:500; display:flex; align-items:center; gap:6px; }
+  .filter-toggle-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(79,110,247,.08); }
+  .filter-toggle-btn:hover { border-color:var(--accent); color:var(--text); }
+  .filter-separator { width:1px; height:22px; background:var(--border); flex-shrink:0; }
+
+  /* ── Product / Priority filter bars ── */
+  #product-filter-bar,#priority-filter-bar { display:none; flex-wrap:wrap; gap:6px; align-items:center; }
+  #product-filter-bar.visible { display:flex; }
+  #priority-filter-bar.visible { display:flex; }
+  .prod-filter-label { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em; flex-shrink:0; }
+  .prod-filter-btn { padding:4px 10px; border-radius:5px; border:1px solid var(--border); background:none; color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; }
+  .prod-filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .prod-filter-btn:hover:not(.active) { border-color:var(--accent); color:var(--text); }
+
+  /* ── Issues table ── */
+  .table-container { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .table-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.25rem; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+  .table-title { font-size:13px; font-weight:600; color:var(--text); }
+  .table-meta { font-size:12px; color:var(--muted); }
+  .issues-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .issues-table th { padding:10px 12px; text-align:left; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+  .issues-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .issues-table tr:last-child td { border-bottom:none; }
+  .issues-table tr:hover td { background:var(--surface2); }
+  .issues-table a { color:var(--accent); text-decoration:none; font-family:'IBM Plex Mono',monospace; font-size:12px; }
+  .issues-table a:hover { text-decoration:underline; }
+  .summary-link { color:var(--text) !important; font-family:'IBM Plex Sans',sans-serif !important; font-size:13px !important; }
+  .status-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; background:var(--surface2); color:var(--muted); white-space:nowrap; }
+  .status-badge.done { background:rgba(16,185,129,.15); color:var(--success); }
+  .status-badge.inprogress { background:rgba(79,110,247,.15); color:var(--accent); }
+  .status-badge.waiting { background:rgba(245,158,11,.12); color:var(--warning); }
+  .status-badge.blocked { background:rgba(239,68,68,.12); color:var(--danger); }
+  .priority-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; flex-shrink:0; }
+  .prio-p1,.prio-critical,.prio-highest { background:var(--danger); }
+  .prio-p2,.prio-high { background:var(--warning); }
+  .prio-p3,.prio-medium { background:var(--info); }
+  .prio-p4,.prio-low,.prio-lowest { background:var(--muted); }
+  .product-pills { display:flex; flex-wrap:wrap; gap:4px; max-width:190px; }
+  .product-pill { background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .age-old { color:var(--danger); }
+  .age-medium { color:var(--warning); }
+  .icp-badge { display:inline-block; background:rgba(124,58,237,.15); color:var(--accent2); border:1px solid rgba(124,58,237,.3); border-radius:4px; padding:1px 6px; font-size:10px; font-weight:600; margin-left:4px; }
+  .tier-badge { display:inline-block; background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:10px; color:var(--muted); margin-left:4px; }
+  .proj-filter-btn { padding:3px 8px; border-radius:4px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:11px; font-family:'IBM Plex Mono',monospace; cursor:pointer; transition:all .15s; }
+  .proj-filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .proj-filter-btn:hover:not(.active) { border-color:var(--accent); color:var(--text); }
+  .eng-closed-badge { display:inline-block; background:rgba(16,185,129,.12); color:var(--success); border:1px solid rgba(16,185,129,.3); border-radius:4px; padding:1px 6px; font-size:10px; font-weight:600; margin-left:4px; }
+
+  /* ── Comment row ── */
+  .comment-row td { padding:6px 12px 10px 28px; font-size:12px; color:var(--muted); background:var(--surface2) !important; border-bottom:1px solid var(--border); }
+  .comment-author { font-weight:600; color:var(--text); }
+  .comment-text { margin-top:2px; line-height:1.5; }
+  .comment-toggle-wrap { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; }
+  .toggle-switch { position:relative; display:inline-block; width:32px; height:18px; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-track { position:absolute; inset:0; background:var(--border); border-radius:9px; transition:.2s; cursor:pointer; }
+  .toggle-track::before { content:''; position:absolute; height:12px; width:12px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s; }
+  input:checked + .toggle-track { background:var(--accent); }
+  input:checked + .toggle-track::before { transform:translateX(14px); }
+
+  /* ── Bucket section headers in table ── */
+  .bucket-section-header td { background:var(--surface2); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); padding:6px 12px; border-bottom:1px solid var(--border); }
+
+  /* ── Spinner / loading ── */
+  .spinner { display:inline-block; width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading { text-align:center; padding:3rem; color:var(--muted); font-size:14px; }
+  .empty { text-align:center; padding:3rem; color:var(--muted); font-size:14px; }
+
+  /* ── Copy button ── */
+  .copy-btn { padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--muted); font-size:12px; font-family:'IBM Plex Sans',sans-serif; cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:5px; }
+  .copy-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .copy-btn.copied { background:var(--success); border-color:var(--success); color:#fff; }
+
+  /* ── Version tag ── */
+  #version-tag { position:fixed; bottom:12px; right:16px; font-size:10px; font-family:'IBM Plex Mono',monospace; color:var(--muted); display:flex; align-items:center; gap:5px; z-index:50; }
+  #version-tag img { width:14px; height:14px; opacity:.5; }
+
+  /* ── Multi-select tags ── */
+  .multiselect-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+  .ms-tag { display:inline-flex; align-items:center; gap:4px; background:var(--surface2); border:1px solid var(--accent); border-radius:6px; padding:3px 8px; font-size:12px; font-weight:500; color:var(--text); }
+  .ms-tag-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; line-height:1; padding:0; margin-left:2px; }
+  .ms-tag-remove:hover { color:var(--danger); }
+  .dropdown-item.selected-item { color:var(--accent); font-weight:600; }
+  .dropdown-item.selected-item::before { content:'✓ '; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Engageware<span>/</span>support</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="theme-toggle" id="lang-toggle" title="Toggle language">EN</button>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle theme">☀️</button>
+    <button id="auth-btn" data-i18n="sign_in" onclick="startAuth()">Connect to Jira →</button>
+  </div>
+</header>
+
+<div id="auth-screen">
+  <h2 data-i18n="auth_title">Support Dashboard</h2>
+  <p data-i18n="auth_desc">Connect your Atlassian account to view and manage support tickets by priority, tier, and SLA status.</p>
+  <button class="connect-btn" data-i18n="connect_btn" onclick="startAuth()">Connect to Jira →</button>
+</div>
+
+<div id="app" style="display:none">
+<main>
+
+  <!-- Assignee filter row -->
+  <div id="assignee-row" style="display:none">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span class="assignee-section-label" data-i18n="view_label">View</span>
+      <div class="assignee-btn-group">
+        <button class="assignee-btn active" id="assignee-btn-mine" onclick="setAssigneeMode('mine-unassigned')" data-i18n="assignee_mine">My Tickets + Unassigned</button>
+        <button class="assignee-btn" id="assignee-btn-all" onclick="setAssigneeMode('all')" data-i18n="assignee_all">All Tickets</button>
+      </div>
+      <span id="current-user-chip"></span>
+      <button id="clear-state-btn" onclick="clearAllState()" style="display:none;margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;" onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">✕ Clear All Filters</button>
+    </div>
+  </div>
+
+  <div class="or-divider-row" id="preset-divider" style="margin-top:1rem;margin-bottom:.75rem;"><span class="or-divider-text" data-i18n="or_filter_by">or filter by tier</span></div>
+
+  <!-- Preset filters -->
+  <div id="preset-section">
+    <div class="preset-buttons">
+      <button class="preset-btn" id="preset-t1-all" onclick="loadPreset('t1-all')"><span class="preset-spinner"></span><span data-i18n="preset_t1_all">Tier 1 — All Open</span></button>
+      <button class="preset-btn" id="preset-t1-icp" onclick="loadPreset('t1-icp')"><span class="preset-spinner"></span><span data-i18n="preset_t1_icp">Tier 1 — ICP</span></button>
+      <button class="preset-btn" id="preset-t1-nonicp" onclick="loadPreset('t1-nonicp')"><span class="preset-spinner"></span><span data-i18n="preset_t1_nonicp">Tier 1 — Non-ICP</span></button>
+      <button class="preset-btn" id="preset-t2-all" onclick="loadPreset('t2-all')"><span class="preset-spinner"></span><span data-i18n="preset_t2_all">Tier 2 — All Open</span></button>
+      <button class="preset-btn" id="preset-aging-30" onclick="loadPreset('aging-30')"><span class="preset-spinner"></span><span data-i18n="preset_aging30">All Aging (30D+)</span></button>
+      <button class="preset-btn" id="preset-aging-90" onclick="loadPreset('aging-90')"><span class="preset-spinner"></span><span data-i18n="preset_aging90">All Aging (90D+)</span></button>
+    </div>
+  </div>
+
+  <div class="or-divider-row"><span class="or-divider-text" data-i18n="or_search_by">or search by</span></div>
+
+  <!-- Customer / Org search -->
+  <div id="picker-row">
+    <div class="search-box-wrap">
+      <div class="search-box-label" data-i18n="customer_label">Customer</div>
+      <div id="customer-dropdown">
+        <input type="text" id="customer-search" data-i18n-placeholder="search_customers" placeholder="Search customers…" autocomplete="off">
+        <div class="dropdown-list" id="customer-dropdown-list"></div>
+      </div>
+      <div id="customer-tags" class="multiselect-tags"></div>
+    </div>
+    <div class="or-separator" style="margin-top:20px;">or</div>
+    <div class="search-box-wrap">
+      <div class="search-box-label" data-i18n="org_label">Organization</div>
+      <div id="org-dropdown">
+        <input type="text" id="org-search" data-i18n-placeholder="search_orgs" placeholder="Search organizations…" autocomplete="off">
+        <div class="dropdown-list" id="org-dropdown-list"></div>
+      </div>
+      <div id="org-tags" class="multiselect-tags"></div>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- SLA Metrics Panel -->
+  <div id="sla-panel">
+    <div class="sla-panel-label" data-i18n="sla_label">SLA Performance</div>
+    <div class="sla-grid">
+      <div class="sla-card">
+        <div class="sla-card-title" data-i18n="sla_p1_title">P1 — Closure &lt;4h</div>
+        <div class="sla-windows">
+          <div>
+            <div class="sla-window" data-i18n="sla_30d">30 Days</div>
+            <div class="sla-pct na" id="sla-p1-30">—</div>
+            <div class="sla-sub" id="sla-p1-30-sub"></div>
+          </div>
+          <div>
+            <div class="sla-window" data-i18n="sla_90d">90 Days</div>
+            <div class="sla-pct na" id="sla-p1-90">—</div>
+            <div class="sla-sub" id="sla-p1-90-sub"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sla-card">
+        <div class="sla-card-title" data-i18n="sla_p2_title">P2 — Closure &lt;1 Day</div>
+        <div class="sla-windows">
+          <div>
+            <div class="sla-window" data-i18n="sla_30d">30 Days</div>
+            <div class="sla-pct na" id="sla-p2-30">—</div>
+            <div class="sla-sub" id="sla-p2-30-sub"></div>
+          </div>
+          <div>
+            <div class="sla-window" data-i18n="sla_90d">90 Days</div>
+            <div class="sla-pct na" id="sla-p2-90">—</div>
+            <div class="sla-sub" id="sla-p2-90-sub"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sla-card">
+        <div class="sla-card-title" data-i18n="sla_p3_title">P3 — Closure &lt;5 Days</div>
+        <div class="sla-windows">
+          <div>
+            <div class="sla-window" data-i18n="sla_30d">30 Days</div>
+            <div class="sla-pct na" id="sla-p3-30">—</div>
+            <div class="sla-sub" id="sla-p3-30-sub"></div>
+          </div>
+          <div>
+            <div class="sla-window" data-i18n="sla_90d">90 Days</div>
+            <div class="sla-pct na" id="sla-p3-90">—</div>
+            <div class="sla-sub" id="sla-p3-90-sub"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <hr class="section-divider" style="margin:.875rem 0;">
+  </div>
+
+  <!-- Stat tiles -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card clickable-stat" onclick="switchTab('queue')" title="Work Queue">
+      <div class="stat-label">📋 Queue</div>
+      <div class="stat-value" id="stat-queue">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('p1')" title="P1 Open">
+      <div class="stat-label" data-i18n="stat_p1">P1 Open</div>
+      <div class="stat-value danger" id="stat-p1">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('p2')" title="P2 Open">
+      <div class="stat-label" data-i18n="stat_p2">P2 Open</div>
+      <div class="stat-value warning" id="stat-p2">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('t1icp')" title="Tier 1 ICP">
+      <div class="stat-label" data-i18n="stat_t1icp">T1 ICP</div>
+      <div class="stat-value info" id="stat-t1icp">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('t1')" title="Tier 1">
+      <div class="stat-label" data-i18n="stat_t1">Tier 1</div>
+      <div class="stat-value info" id="stat-t1">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('t2')" title="Tier 2">
+      <div class="stat-label" data-i18n="stat_t2">Tier 2</div>
+      <div class="stat-value" id="stat-t2">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('t34')" title="Tier 3/4">
+      <div class="stat-label" data-i18n="stat_t34">Tier 3/4</div>
+      <div class="stat-value" id="stat-t34">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('aging')" title="Aging">
+      <div class="stat-label" data-i18n="stat_aging">⚠ Aging</div>
+      <div class="stat-value danger" id="stat-aging">…</div>
+    </div>
+    <div class="stat-card clickable-stat" onclick="switchTab('resolved')" title="Resolved">
+      <div class="stat-label" data-i18n="stat_resolved">✓ Resolved</div>
+      <div class="stat-value success" id="stat-resolved">…</div>
+    </div>
+  </div>
+
+  <!-- Bucket tabs -->
+  <div class="bucket-tabs" id="bucket-tabs">
+    <button class="tab-btn active" id="tab-queue" onclick="switchTab('queue')">📋 Work Queue <span class="count" id="cnt-queue">…</span></button>
+    <button class="tab-btn" id="tab-p1" onclick="switchTab('p1')">🔴 P1 <span class="count" id="cnt-p1">…</span></button>
+    <button class="tab-btn" id="tab-p2" onclick="switchTab('p2')">🟠 P2 <span class="count" id="cnt-p2">…</span></button>
+    <button class="tab-btn" id="tab-t1icp" onclick="switchTab('t1icp')">T1 ICP <span class="count" id="cnt-t1icp">…</span></button>
+    <button class="tab-btn" id="tab-t1" onclick="switchTab('t1')">Tier 1 <span class="count" id="cnt-t1">…</span></button>
+    <button class="tab-btn" id="tab-t2" onclick="switchTab('t2')">Tier 2 <span class="count" id="cnt-t2">…</span></button>
+    <button class="tab-btn" id="tab-t34" onclick="switchTab('t34')">Tier 3/4 <span class="count" id="cnt-t34">…</span></button>
+    <button class="tab-btn" id="tab-aging" onclick="switchTab('aging')">⚠ Aging <span class="count" id="cnt-aging">…</span></button>
+    <button class="tab-btn" id="tab-resolved" onclick="switchTab('resolved')">✓ Resolved <span class="count" id="cnt-resolved">…</span></button>
+  </div>
+
+  <!-- Day pickers -->
+  <div id="resolved-slider-wrap" class="day-picker-wrap" style="display:none!important">
+    <span data-i18n="show_resolved">Show resolved:</span>
+    <button class="day-btn" data-days="7">7d</button>
+    <button class="day-btn" data-days="14">14d</button>
+    <button class="day-btn active" data-days="30">30d</button>
+    <button class="day-btn" data-days="60">60d</button>
+    <button class="day-btn" data-days="90">90d</button>
+  </div>
+  <div id="aging-slider-wrap" class="day-picker-wrap" style="display:none!important">
+    <span data-i18n="show_aging">Aging threshold:</span>
+    <button class="aging-day-btn" data-days="14">14d</button>
+    <button class="aging-day-btn active" data-days="30">30d</button>
+    <button class="aging-day-btn" data-days="60">60d</button>
+    <button class="aging-day-btn" data-days="90">90d</button>
+  </div>
+
+  <!-- Active filter toolbar -->
+  <div id="active-filter-bar">
+    <button class="filter-toggle-btn active" id="filter-actionable" onclick="toggleActionableFilter()" title="Hide tickets waiting on customer or engineering">
+      ✓ <span data-i18n="filter_actionable">Support Actionable</span>
+    </button>
+    <button class="filter-toggle-btn" id="filter-eng-closed" onclick="toggleEngClosedFilter()" title="Show tickets where linked Engineering/OPS ticket is resolved">
+      🔗 <span data-i18n="filter_eng_closed">Aging / Eng Closed</span>
+    </button>
+    <div class="filter-separator" id="filter-sep" style="display:none"></div>
+    <div id="product-filter-bar"></div>
+    <div id="priority-filter-bar" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+  </div>
+
+  <!-- Issues panel -->
+  <div id="issues-panel"></div>
+
+</main>
+</div>
+
+<script>
+// ── i18n ──────────────────────────────────────────────────────────────────────
+const I18N = {
+  en: {
+    sign_in: 'Connect to Jira →', sign_out: 'Sign out',
+    auth_title: 'Support Dashboard', auth_desc: 'Connect your Atlassian account to view and manage support tickets.',
+    connect_btn: 'Connect to Jira →',
+    view_label: 'View', assignee_mine: 'My Tickets + Unassigned', assignee_all: 'All Tickets',
+    or_filter_by: 'or filter by tier', or_search_by: 'or search by',
+    customer_label: 'Customer', org_label: 'Organization',
+    search_customers: 'Search customers…', search_orgs: 'Search organizations…',
+    preset_t1_all: 'Tier 1 — All Open', preset_t1_icp: 'Tier 1 — ICP',
+    preset_t1_nonicp: 'Tier 1 — Non-ICP', preset_t2_all: 'Tier 2 — All Open',
+    preset_aging30: 'All Aging (30D+)', preset_aging90: 'All Aging (90D+)',
+    sla_label: 'SLA Performance', sla_p1_title: 'P1 — Closure <4h',
+    sla_p2_title: 'P2 — Closure <1 Day', sla_p3_title: 'P3 — Closure <5 Days',
+    sla_30d: '30 Days', sla_90d: '90 Days',
+    stat_p1: 'P1 Open', stat_p2: 'P2 Open', stat_t1icp: 'T1 ICP',
+    stat_t1: 'Tier 1', stat_t2: 'Tier 2', stat_t34: 'Tier 3/4',
+    stat_aging: '⚠ Aging', stat_resolved: '✓ Resolved',
+    tab_t1icp: 'T1 ICP', tab_t1: 'Tier 1', tab_t2: 'Tier 2', tab_t34: 'Tier 3/4',
+    tab_aging: '⚠ Aging', tab_resolved: '✓ Resolved',
+    show_resolved: 'Show resolved:', show_aging: 'Aging threshold:',
+    filter_actionable: 'Support Actionable', filter_eng_closed: 'Aging / Eng Closed',
+    filter_by_product: 'Queue:', all_products: 'All',
+    filter_by_priority: 'Priority:',
+    col_key: 'Key', col_summary: 'Summary', col_status: 'Status',
+    col_priority: 'Priority', col_assignee: 'Assignee', col_updated: 'Updated',
+    col_customer: 'Customer(s)', col_created: 'Created', col_product: 'Product',
+    col_tier: 'Tier', col_age: 'Age',
+    last_comment: 'Last Comment', copy: 'Copy', copied: 'Copied!',
+    loading: 'Loading…', no_issues: 'No issues found.',
+    issues_suffix: 'issues', issue_suffix: 'issue',
+    tab_title_p1: 'P1 — Critical Tickets',
+    tab_title_p2: 'P2 — High Priority',
+    tab_title_t1icp: 'Tier 1 ICP — Open Tickets',
+    tab_title_t1: 'Tier 1 — Open Tickets',
+    tab_title_t2: 'Tier 2 — Open Tickets',
+    tab_title_t34: 'Tier 3 / 4 — Open Tickets',
+    tab_title_aging: 'Aging — No update in',
+    tab_title_resolved: 'Resolved — Last',
+  },
+  es: {
+    sign_in: 'Conectar a Jira →', sign_out: 'Cerrar sesión',
+    auth_title: 'Panel de Soporte', auth_desc: 'Conecta tu cuenta de Atlassian para ver y gestionar tickets de soporte.',
+    connect_btn: 'Conectar a Jira →',
+    view_label: 'Vista', assignee_mine: 'Mis Tickets + Sin Asignar', assignee_all: 'Todos los Tickets',
+    or_filter_by: 'o filtrar por nivel', or_search_by: 'o buscar por',
+    customer_label: 'Cliente', org_label: 'Organización',
+    search_customers: 'Buscar clientes…', search_orgs: 'Buscar organizaciones…',
+    preset_t1_all: 'Nivel 1 — Todos', preset_t1_icp: 'Nivel 1 — ICP',
+    preset_t1_nonicp: 'Nivel 1 — No ICP', preset_t2_all: 'Nivel 2 — Todos',
+    preset_aging30: 'Todos Aging (30D+)', preset_aging90: 'Todos Aging (90D+)',
+    sla_label: 'Desempeño SLA', sla_p1_title: 'P1 — Cierre <4h',
+    sla_p2_title: 'P2 — Cierre <1 Día', sla_p3_title: 'P3 — Cierre <5 Días',
+    sla_30d: '30 Días', sla_90d: '90 Días',
+    stat_p1: 'P1 Abiertos', stat_p2: 'P2 Abiertos', stat_t1icp: 'N1 ICP',
+    stat_t1: 'Nivel 1', stat_t2: 'Nivel 2', stat_t34: 'Nivel 3/4',
+    stat_aging: '⚠ Aging', stat_resolved: '✓ Resueltos',
+    tab_t1icp: 'N1 ICP', tab_t1: 'Nivel 1', tab_t2: 'Nivel 2', tab_t34: 'Nivel 3/4',
+    tab_aging: '⚠ Aging', tab_resolved: '✓ Resueltos',
+    show_resolved: 'Mostrar resueltos:', show_aging: 'Umbral aging:',
+    filter_actionable: 'Accionable por Soporte', filter_eng_closed: 'Aging / Eng Cerrados',
+    filter_by_product: 'Cola:', all_products: 'Todos',
+    filter_by_priority: 'Prioridad:',
+    col_key: 'Clave', col_summary: 'Resumen', col_status: 'Estado',
+    col_priority: 'Prioridad', col_assignee: 'Asignado', col_updated: 'Actualizado',
+    col_customer: 'Cliente(s)', col_created: 'Creado', col_product: 'Producto',
+    col_tier: 'Nivel', col_age: 'Edad',
+    last_comment: 'Último Comentario', copy: 'Copiar', copied: '¡Copiado!',
+    loading: 'Cargando…', no_issues: 'No se encontraron tickets.',
+    issues_suffix: 'tickets', issue_suffix: 'ticket',
+    tab_title_p1: 'P1 — Tickets Críticos',
+    tab_title_p2: 'P2 — Alta Prioridad',
+    tab_title_t1icp: 'Nivel 1 ICP — Tickets Abiertos',
+    tab_title_t1: 'Nivel 1 — Tickets Abiertos',
+    tab_title_t2: 'Nivel 2 — Tickets Abiertos',
+    tab_title_t34: 'Nivel 3 / 4 — Tickets Abiertos',
+    tab_title_aging: 'Aging — Sin actualización en',
+    tab_title_resolved: 'Resueltos — Últimos',
+  }
+};
+let lang = localStorage.getItem('sup_lang') || 'en';
+function t(k) { return (I18N[lang] && I18N[lang][k]) || I18N['en'][k] || k; }
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n'); if (I18N[lang][k]) el.textContent = I18N[lang][k];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.getAttribute('data-i18n-placeholder'); if (I18N[lang][k]) el.placeholder = I18N[lang][k];
+  });
+  document.getElementById('lang-toggle').textContent = lang.toUpperCase();
+}
+document.getElementById('lang-toggle').addEventListener('click', () => {
+  lang = lang === 'en' ? 'es' : 'en';
+  localStorage.setItem('sup_lang', lang);
+  applyLang();
+  if (currentTab) renderTab(currentTab);
+});
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const CLIENT_ID    = 'LmckYe4wFOygrvm4VEKmj0D6MTTP6Gjx';
+const REDIRECT_URI = 'https://wilso132.github.io/support-engageware/';
+const WORKER_URL   = 'https://csm-token-exchange.mwilson-7a1.workers.dev';
+
+// ── Jira project lists ────────────────────────────────────────────────────────
+const SUPPORT_PROJECTS     = ['ASC','SCS','ACSC','TCST','AIC','AMXE'];
+const ENGINEERING_PROJECTS = ['AVS','AS','CORE','FLASH','GN','INTS','LIV','OUTB','PLT','SPID','UN','SEC','LEAR','PRD','ODSGI','IT','IC','ET','FR','LB'];
+const OPS_PROJECTS         = ['OPS'];
+const ALL_PROJECTS         = [...SUPPORT_PROJECTS, ...ENGINEERING_PROJECTS, ...OPS_PROJECTS];
+
+// Custom fields
+const CF_CUSTOMER = 'cf[10100]';
+const CF_TIER     = 'customfield_13703';
+const CF_ICP      = 'customfield_13874';
+const CF_PRODUCT  = 'customfield_12284';
+const CF_CUST_OUT = 'customfield_10100';
+
+// Priority groups
+const P1_PRIOS = ['P1','Critical','Highest','Critical (P1)'];
+const P2_PRIOS = ['P2','High','High (P2)'];
+const P3_PRIOS = ['P3','Medium','Medium (P3)'];
+const P4_PRIOS = ['P4','Low','Lowest','Low (P4)'];
+
+// Statuses NOT actionable by support (waiting on someone else)
+const NON_ACTIONABLE_STATUSES = [
+  'waiting for customer','pending customer','waiting on customer',
+  'customer hold','waiting for client','waiting on client',
+  'pending customer response','awaiting customer response',
+  'waiting for engineering','escalated to engineering',
+  'in development','scheduled','pending release','awaiting release',
+  'waiting for 3rd party','waiting for third party','waiting for vendor',
+  'on hold','deferred','future','in product backlog','product backlog',
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let accessToken      = localStorage.getItem('sup_access_token');
+let currentUserAccountId = null;
+let currentUserName  = '';
+let assigneeMode     = localStorage.getItem('sup_assignee_mode') || 'mine-unassigned';
+let allCustomers     = [];
+let allOrgs          = [];
+let selectedCustomers = [];  // multi-select
+let selectedOrgs      = [];  // multi-select
+let activePreset     = '';
+let currentTab       = 'queue';
+let resolvedDays     = parseInt(localStorage.getItem('sup_resolved_days') || '30');
+let agingDays        = parseInt(localStorage.getItem('sup_aging_days') || '30');
+let activeProductFilter  = sessionStorage.getItem('sup_product_filter')  || '';
+let activePriorityFilter = sessionStorage.getItem('sup_priority_filter') || '';
+let showActionable   = localStorage.getItem('sup_actionable') !== 'false'; // default true
+let showEngClosed    = false; // never persisted — always starts off
+let showComments     = localStorage.getItem('sup_comments') === 'true';
+let activeProjects   = JSON.parse(localStorage.getItem('sup_projects') || 'null') || [...SUPPORT_PROJECTS];
+let issueCache       = {};  // tab -> issues[]
+let slaCache         = null; // resolved tickets for SLA computation
+let presetCache      = {};  // key -> {issues, ts}
+
+// ── IndexedDB cache (survives page refresh, handles full ticket data + comments) ──
+const IDB_NAME = 'sup-cache', IDB_STORE = 'tickets';
+function getCacheKey() {
+  return JSON.stringify({ preset: activePreset, customers: [...selectedCustomers].sort(), orgs: [...selectedOrgs].sort(), assignee: assigneeMode, projects: [...activeProjects].sort() });
+}
+function openIDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains(IDB_STORE)) e.target.result.createObjectStore(IDB_STORE); };
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = e => rej(e.target.error);
+  });
+}
+async function saveCacheToSession() {
+  try {
+    // Save open tickets with 5-min TTL (exclude resolved — saved separately with 1hr TTL)
+    const { resolved, ...openCache } = issueCache;
+    const payload = { data: JSON.parse(JSON.stringify(openCache)), ts: Date.now(), key: getCacheKey() };
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(payload, 'main');
+    await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    db.close();
+    console.log('[Cache] Saved open tickets to IndexedDB (5min TTL)');
+  } catch(e) { console.warn('[Cache] IDB save failed:', e.message); }
+}
+async function saveSlaCacheToSession() {
+  if (!slaCache) return;
+  try {
+    const slaKey = SLA_SCHEMA + ':' + JSON.stringify([...activeProjects].sort()); // versioned project-only key
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put({ data: slaCache, resolved: issueCache['resolved'], ts: Date.now(), key: getCacheKey(), slaKey }, 'sla');
+    await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    db.close();
+    console.log('[Cache] Saved SLA data to IndexedDB (1hr TTL)');
+  } catch(e) {}
+}
+async function loadCacheFromSession() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const store = tx.objectStore(IDB_STORE);
+    const [main, sla] = await Promise.all([
+      new Promise(r => { const q = store.get('main'); q.onsuccess = e => r(e.target.result); q.onerror = () => r(null); }),
+      new Promise(r => { const q = store.get('sla');  q.onsuccess = e => r(e.target.result); q.onerror = () => r(null); }),
+    ]);
+    db.close();
+    if (!main) return false;
+    if (Date.now() - main.ts > TICKET_TTL) return false;   // 5min for open tickets
+    if (main.key !== getCacheKey()) return false;
+    const data = { ...main.data };
+    // Restore SLA/resolved if within 1hr TTL and same key
+    if (sla && Date.now() - sla.ts <= SLA_TTL && sla.slaKey === SLA_SCHEMA + ':' + JSON.stringify([...activeProjects].sort())) {
+      data['resolved'] = sla.resolved || null;
+      if (sla.data) { slaCache = sla.data; }
+    }
+    return data;
+  } catch(e) { return false; }
+}
+async function clearSessionCache() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete('main');
+    tx.objectStore(IDB_STORE).delete('sla');
+    await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    db.close();
+  } catch(e) {}
+}
+
+const TICKET_TTL     = 5 * 60 * 1000;   // 5 minutes for open tickets
+const SLA_TTL        = 60 * 60 * 1000;  // 1 hour for SLA/resolved data
+const SLA_SCHEMA     = 'v4'; // bumped: added issuetype to SLA_FIELDS // increment when SLA_FIELDS change to bust old cache
+const PRESET_TTL     = 60 * 60 * 1000;  // 1 hour for preset data
+const CUSTOMER_TTL   = 4 * 60 * 60 * 1000; // 4 hours for customer/org lists
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function startAuth() {
+  // Save state before redirect
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('customer')) sessionStorage.setItem('sup_pending_customer', p.get('customer'));
+  else sessionStorage.removeItem('sup_pending_customer');
+  if (p.get('org'))      sessionStorage.setItem('sup_pending_org', p.get('org'));
+  else sessionStorage.removeItem('sup_pending_org');
+  if (p.get('tab'))      sessionStorage.setItem('sup_pending_tab', p.get('tab'));
+  else sessionStorage.removeItem('sup_pending_tab');
+  if (p.get('preset'))   sessionStorage.setItem('sup_pending_preset', p.get('preset'));
+  else sessionStorage.removeItem('sup_pending_preset');
+  if (p.get('product'))  sessionStorage.setItem('sup_product_filter', p.get('product'));
+  if (p.get('priority')) sessionStorage.setItem('sup_priority_filter', p.get('priority'));
+
+  const state = Math.random().toString(36).slice(2);
+  localStorage.setItem('sup_oauth_state', state);
+  const params = new URLSearchParams({
+    audience: 'api.atlassian.com', client_id: CLIENT_ID,
+    scope: 'read:jira-work read:jira-user read:account offline_access',
+    redirect_uri: REDIRECT_URI, state, response_type: 'code', prompt: 'consent',
+  });
+  window.location = 'https://auth.atlassian.com/authorize?' + params;
+}
+
+function logout() {
+  localStorage.removeItem('sup_access_token');
+  localStorage.removeItem('sup_refresh_token');
+  localStorage.removeItem('sup_oauth_state');
+  localStorage.removeItem('sup_customer');
+  localStorage.removeItem('sup_org');
+  localStorage.removeItem('sup_preset');
+  accessToken = null;
+  window.history.replaceState({}, '', window.location.pathname);
+  showAuthScreen();
+}
+
+function showAuthScreen() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-btn').textContent = t('sign_in');
+  document.getElementById('auth-btn').onclick = startAuth;
+  document.getElementById('auth-btn').className = '';
+}
+
+async function handleCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (!code) return false;
+  window.history.replaceState({}, '', window.location.pathname);
+  document.getElementById('auth-screen').innerHTML = `<h2>Connecting…</h2><div class="spinner" style="margin:1rem auto;display:block;"></div>`;
+  try {
+    const r = await fetch(WORKER_URL + '/token', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ code, redirect_uri: REDIRECT_URI }),
+    });
+    const data = await r.json();
+    if (data.access_token) {
+      accessToken = data.access_token;
+      localStorage.setItem('sup_access_token', accessToken);
+      if (data.refresh_token) localStorage.setItem('sup_refresh_token', data.refresh_token);
+      return true;
+    }
+    throw new Error(data.error_description || 'No access token');
+  } catch(e) {
+    document.getElementById('auth-screen').innerHTML = `<h2>Connection failed</h2><p style="color:var(--danger)">${e.message}</p><button class="connect-btn" onclick="startAuth()">Try again →</button>`;
+    return false;
+  }
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function jiraFetch(path, params = {}) {
+  if (path === '/rest/api/3/issue/search') {
+    const r = await fetch(WORKER_URL + '/jira/search', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':`Bearer ${accessToken}`},
+      body: JSON.stringify(params),
+    });
+    if (!r.ok) { const txt = await r.text(); throw new Error(`Jira ${r.status}: ${txt.slice(0,120)}`); }
+    return r.json();
+  }
+  const url = new URL(WORKER_URL + '/jira' + path);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const r = await fetch(url.toString(), { headers: {'Authorization':`Bearer ${accessToken}`} });
+  if (!r.ok) { const txt = await r.text(); throw new Error(`Jira ${r.status}: ${txt.slice(0,120)}`); }
+  return r.json();
+}
+
+const SUPPORT_FIELDS = [
+  'summary','status','priority','issuetype','assignee','updated','created',
+  'resolutiondate','statuscategorychangedate','comment','project',
+  CF_PRODUCT, CF_CUST_OUT, CF_TIER, CF_ICP, 'issuelinks'
+].join(',');
+
+async function searchIssues(jql, fields = SUPPORT_FIELDS) {
+  const all = []; let next = null;
+  do {
+    const params = { jql, fields, maxResults: 100 };
+    if (next) params.nextPageToken = next;
+    const data = await jiraFetch('/rest/api/3/issue/search', params);
+    const issues = data.issues || [];
+    all.push(...issues);
+    next = data.nextPageToken || null;
+    if (issues.length < 100) break;
+  } while (next);
+  return all;
+}
+
+// ── Current user ──────────────────────────────────────────────────────────────
+function fetchCurrentUser() {
+  // Decode account ID directly from the JWT token — no network call, no CORS issues
+  try {
+    const parts = (accessToken || '').split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      currentUserAccountId = payload.sub || payload.account_id || null;
+      if (currentUserAccountId) {
+        // Try to get display name from token claims
+        currentUserName = payload.name || payload.email || '';
+        if (currentUserName) {
+          const chip = document.getElementById('current-user-chip');
+          if (chip) { chip.textContent = '(' + currentUserName + ')'; chip.classList.add('visible'); }
+        }
+        console.log('[Support] User ID from token:', currentUserAccountId);
+        return;
+      }
+    }
+  } catch(e) { console.warn('[Support] Could not decode token:', e); }
+  // No account ID — assigneeJql() will return '' so all tickets are shown.
+  // Keep assigneeMode unchanged to preserve cache key consistency across reloads.
+}
+
+// ── Assignee filter ───────────────────────────────────────────────────────────
+function setAssigneeMode(mode) {
+  assigneeMode = mode;
+  localStorage.setItem('sup_assignee_mode', mode);
+  document.getElementById('assignee-btn-mine').classList.toggle('active', mode === 'mine-unassigned');
+  document.getElementById('assignee-btn-all').classList.toggle('active', mode === 'all');
+  updateURL();
+  if (selectedCustomers.length > 0 || selectedOrgs.length > 0 || activePreset) reload(); else loadDefaultView();
+}
+
+function assigneeJql() {
+  if (assigneeMode === 'all') return '';
+  if (!currentUserAccountId) return ''; // No account ID — show all tickets (can't filter by user)
+  return `(assignee = "${currentUserAccountId}" OR assignee is EMPTY)`;
+}
+
+function addAssigneeFilter(jql) {
+  const af = assigneeJql();
+  if (!af) return jql;
+  // Must insert BEFORE ORDER BY clause (if present) — ORDER BY must be last in JQL
+  const orderByIdx = jql.toUpperCase().lastIndexOf(' ORDER BY ');
+  if (orderByIdx >= 0) {
+    return jql.slice(0, orderByIdx) + ' AND ' + af + jql.slice(orderByIdx);
+  }
+  return jql + ' AND ' + af;
+}
+
+// ── Customer / Org loading ────────────────────────────────────────────────────
+async function loadCustomers() {
+  const cached = localStorage.getItem('sup_cache_customers');
+  const cachedAt = parseInt(localStorage.getItem('sup_cache_customers_ts') || '0');
+  if (cached && Date.now() - cachedAt < CUSTOMER_TTL) {
+    allCustomers = JSON.parse(cached); return;
+  }
+  try {
+    // Fetch all field contexts first, then options per context
+    const ctxData = await jiraFetch('/rest/api/3/field/customfield_10100/context', { maxResults: 50 });
+    const contexts = ctxData.values || [];
+    allCustomers = [];
+    for (const ctx of contexts) {
+      let startAt = 0;
+      while (true) {
+        const opts = await jiraFetch(
+          `/rest/api/3/field/customfield_10100/context/${ctx.id}/option`,
+          { maxResults: 100, startAt }
+        );
+        const vals = opts.values || [];
+        vals.forEach(v => { if (v.value) allCustomers.push(v.value); });
+        if (opts.isLast || !vals.length) break;
+        startAt += vals.length;
+      }
+    }
+    allCustomers = [...new Set(allCustomers)].sort();
+    localStorage.setItem('sup_cache_customers', JSON.stringify(allCustomers));
+    localStorage.setItem('sup_cache_customers_ts', Date.now().toString());
+  } catch(e) { console.warn('[Support] Could not load customers:', e); }
+}
+
+async function loadOrgs() {
+  const cached = localStorage.getItem('sup_cache_orgs');
+  const cachedAt = parseInt(localStorage.getItem('sup_cache_orgs_ts') || '0');
+  if (cached && Date.now() - cachedAt < CUSTOMER_TTL) {
+    allOrgs = JSON.parse(cached); return;
+  }
+  try {
+    let start = 0; allOrgs = [];
+    while (true) {
+      const data = await jiraFetch('/rest/servicedeskapi/organization', { limit:50, start });
+      const vals = data.values || [];
+      vals.forEach(o => { if (o.name) allOrgs.push(o.name); });
+      if (data.isLastPage || !vals.length) break;
+      start += vals.length;
+    }
+    localStorage.setItem('sup_cache_orgs', JSON.stringify(allOrgs));
+    localStorage.setItem('sup_cache_orgs_ts', Date.now().toString());
+  } catch(e) { console.warn('[Support] Could not load orgs:', e); }
+}
+
+function setupCustomerSearch() {
+  const inp = document.getElementById('customer-search');
+  const listEl = document.getElementById('customer-dropdown-list');
+  function renderList(items) {
+    listEl.innerHTML = items.map(n => {
+      const sel = selectedCustomers.includes(n);
+      return `<div class="dropdown-item${sel ? ' selected-item' : ''}" onclick="selectCustomer('${n.replace(/'/g, "\'")}')">${escHtml(n)}</div>`;
+    }).join('');
+  }
+  inp.addEventListener('input', () => {
+    const q = inp.value.toLowerCase();
+    const filtered = allCustomers.filter(x => x.toLowerCase().includes(q)).slice(0, 80);
+    renderList(filtered);
+    listEl.classList.toggle('open', filtered.length > 0);
+  });
+  inp.addEventListener('focus', () => {
+    const q = inp.value.toLowerCase();
+    const filtered = q ? allCustomers.filter(x => x.toLowerCase().includes(q)).slice(0, 80) : allCustomers.slice(0, 80);
+    renderList(filtered);
+    if (filtered.length) listEl.classList.add('open');
+  });
+  document.addEventListener('click', e => {
+    if (!document.getElementById('customer-dropdown').contains(e.target))
+      listEl.classList.remove('open');
+  });
+}
+function setupOrgSearch() {
+  const inp = document.getElementById('org-search');
+  const listEl = document.getElementById('org-dropdown-list');
+  function renderList(items) {
+    listEl.innerHTML = items.map(n => {
+      const sel = selectedOrgs.includes(n);
+      return `<div class="dropdown-item${sel ? ' selected-item' : ''}" onclick="selectOrg('${n.replace(/'/g, "\'")}')">${escHtml(n)}</div>`;
+    }).join('');
+  }
+  inp.addEventListener('input', () => {
+    const q = inp.value.toLowerCase();
+    const filtered = allOrgs.filter(x => x.toLowerCase().includes(q)).slice(0, 80);
+    renderList(filtered);
+    listEl.classList.toggle('open', filtered.length > 0);
+  });
+  inp.addEventListener('focus', () => {
+    const q = inp.value.toLowerCase();
+    const filtered = q ? allOrgs.filter(x => x.toLowerCase().includes(q)).slice(0, 80) : allOrgs.slice(0, 80);
+    renderList(filtered);
+    if (filtered.length) listEl.classList.add('open');
+  });
+  document.addEventListener('click', e => {
+    if (!document.getElementById('org-dropdown').contains(e.target))
+      listEl.classList.remove('open');
+  });
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+function selectCustomer(name) {
+  const idx = selectedCustomers.indexOf(name);
+  if (idx >= 0) {
+    selectedCustomers.splice(idx, 1);
+  } else {
+    selectedCustomers.push(name);
+    selectedOrgs = [];
+  }
+  if (selectedCustomers.length === 0 && selectedOrgs.length === 0) { clearCustomer(); return; }
+  if (selectedCustomers.length === 1 && idx < 0) {
+    activePreset = '';
+    resetFilters();
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    issueCache = {}; slaCache = null; clearSessionCache();
+  }
+  document.getElementById('customer-dropdown-list').classList.remove('open');
+  document.getElementById('stats-row').style.display = 'grid';
+  document.getElementById('bucket-tabs').style.display = 'flex';
+  document.getElementById('sla-panel').style.display = 'block';
+  localStorage.setItem('sup_customers', JSON.stringify(selectedCustomers));
+  localStorage.removeItem('sup_orgs'); localStorage.removeItem('sup_preset');
+  renderCustomerTags();
+  renderOrgTags();
+  updateURL(); loadAllBuckets();
+}
+
+function selectOrg(name) {
+  const idx = selectedOrgs.indexOf(name);
+  if (idx >= 0) {
+    selectedOrgs.splice(idx, 1);
+  } else {
+    selectedOrgs.push(name);
+    selectedCustomers = [];
+  }
+  if (selectedOrgs.length === 0 && selectedCustomers.length === 0) { clearCustomer(); return; }
+  if (selectedOrgs.length === 1 && idx < 0) {
+    activePreset = '';
+    resetFilters();
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    issueCache = {}; slaCache = null; clearSessionCache();
+  }
+  document.getElementById('org-dropdown-list').classList.remove('open');
+  document.getElementById('stats-row').style.display = 'grid';
+  document.getElementById('bucket-tabs').style.display = 'flex';
+  document.getElementById('sla-panel').style.display = 'block';
+  localStorage.setItem('sup_orgs', JSON.stringify(selectedOrgs));
+  localStorage.removeItem('sup_customers'); localStorage.removeItem('sup_preset');
+  renderCustomerTags();
+  renderOrgTags();
+  updateURL(); loadAllBuckets();
+}
+
+function clearCustomer() {
+  selectedCustomers = []; selectedOrgs = [];
+  issueCache = {}; slaCache = null;
+  localStorage.removeItem('sup_customers'); localStorage.removeItem('sup_orgs'); localStorage.removeItem('sup_tab');
+  document.getElementById('issues-panel').innerHTML = '';
+  document.getElementById('customer-search').value = '';
+  document.getElementById('org-search').value = '';
+  renderCustomerTags();
+  renderOrgTags();
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
+// ── Tag chip rendering ────────────────────────────────────────────────────────
+function renderCustomerTags() {
+  const el = document.getElementById('customer-tags');
+  if (!el) return;
+  el.innerHTML = selectedCustomers.map(n =>
+    `<span class="ms-tag">${escHtml(n)}<button class="ms-tag-remove" onclick="removeCustomer('${n.replace(/'/g, "\'")}')">&#215;</button></span>`
+  ).join('');
+}
+function renderOrgTags() {
+  const el = document.getElementById('org-tags');
+  if (!el) return;
+  el.innerHTML = selectedOrgs.map(n =>
+    `<span class="ms-tag">${escHtml(n)}<button class="ms-tag-remove" onclick="removeOrg('${n.replace(/'/g, "\'")}')">&#215;</button></span>`
+  ).join('');
+}
+function removeCustomer(name) { selectCustomer(name); }
+function removeOrg(name)      { selectOrg(name); }
+
+function resetFilters() {
+  issueCache = {}; slaCache = null; clearSessionCache();
+  activeProductFilter = ''; activePriorityFilter = '';
+  sessionStorage.removeItem('sup_product_filter');
+  sessionStorage.removeItem('sup_priority_filter');
+}
+
+function reload() {
+  if (activePreset) { loadPreset(activePreset, true); }
+  else if (selectedCustomers.length > 0 || selectedOrgs.length > 0) { loadAllBuckets(); }
+}
+
+// ── JQL helpers ───────────────────────────────────────────────────────────────
+function jqlProjects(p) { return '(' + p.map(x => `"${x}"`).join(', ') + ')'; }
+function customerJql(c) {
+  const arr = Array.isArray(c) ? c : [c];
+  if (arr.length === 1) return `${CF_CUSTOMER} = "${arr[0]}"`;
+  return `${CF_CUSTOMER} in (${arr.map(x => '"' + x + '"').join(', ')})`;
+}
+function orgJql(o) {
+  const arr = Array.isArray(o) ? o : [o];
+  if (arr.length === 1) return `cf[11300] = "${arr[0]}"`;
+  return `cf[11300] in (${arr.map(x => '"' + x + '"').join(', ')})`;
+}
+function contextJql() { return selectedOrgs.length > 0 ? orgJql(selectedOrgs) : customerJql(selectedCustomers); }
+
+// ── Issue helpers ─────────────────────────────────────────────────────────────
+function getPriority(issue) { return (issue.fields.priority && issue.fields.priority.name) || ''; }
+function getTier(issue)     { return (issue.fields[CF_TIER]) || ''; }
+function getIcp(issue)      { return (issue.fields[CF_ICP]) || ''; }
+function isP1(issue)        { return P1_PRIOS.includes(getPriority(issue)); }
+function isP2(issue)        { return P2_PRIOS.includes(getPriority(issue)); }
+function isP3(issue)        { return P3_PRIOS.includes(getPriority(issue)); }
+function isIcpOrTier1(issue) {
+  return getIcp(issue).toLowerCase() === 'yes' || (getTier(issue) && getTier(issue).includes('1'));
+}
+function isActionableStatus(issue) {
+  const s = ((issue.fields.status && issue.fields.status.name) || '').toLowerCase();
+  return !NON_ACTIONABLE_STATUSES.some(p => s.includes(p));
+}
+// ASC Problem + Suggestion tickets are internal tracking tickets — not customer-facing support tickets.
+// Exclude them from all dashboard views and SLA calculations.
+function isExcludedAscType(issue) {
+  const proj = issue.fields.project && issue.fields.project.key;
+  const type = issue.fields.issuetype && issue.fields.issuetype.name;
+  return proj === 'ASC' && (type === 'Problem' || type === 'Suggestion');
+}
+function getEffectiveResolvedDate(issue) {
+  const f = issue.fields;
+  if (f.resolutiondate) return new Date(f.resolutiondate);
+  if (f.status && f.status.statusCategory && f.status.statusCategory.key === 'done' && f.statuscategorychangedate)
+    return new Date(f.statuscategorychangedate);
+  return null;
+}
+function hasEngOrOpsClosedLink(issue) {
+  const links = issue.fields.issuelinks || [];
+  return links.some(link => {
+    const linked = link.inwardIssue || link.outwardIssue;
+    if (!linked) return false;
+    const proj = (linked.key || '').split('-')[0];
+    const done = linked.fields && linked.fields.status && linked.fields.status.statusCategory && linked.fields.status.statusCategory.key === 'done';
+    return done && (ENGINEERING_PROJECTS.includes(proj) || OPS_PROJECTS.includes(proj));
+  });
+}
+
+// Sort: ICP/Tier1 first, then oldest-first within each group
+function sortByWeightedAge(issues) {
+  return [...issues].sort((a, b) => {
+    const ai = isIcpOrTier1(a) ? 1 : 0, bi = isIcpOrTier1(b) ? 1 : 0;
+    if (bi !== ai) return bi - ai;
+    return new Date(a.fields.created||0).getTime() - new Date(b.fields.created||0).getTime();
+  });
+}
+
+// ── Bucket splitting ──────────────────────────────────────────────────────────
+function splitIntoBuckets(issues) {
+  const open   = issues.filter(i => i.fields.status && i.fields.status.statusCategory && i.fields.status.statusCategory.key !== 'done');
+  const done   = issues.filter(i => i.fields.status && i.fields.status.statusCategory && i.fields.status.statusCategory.key === 'done');
+  const support = open.filter(i => i.fields.project && SUPPORT_PROJECTS.includes(i.fields.project.key) && !isExcludedAscType(i));
+
+  const p1    = sortByWeightedAge(support.filter(isP1));
+  const p2    = sortByWeightedAge(support.filter(i => isP2(i) && !isP1(i)));
+  const t1icp = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() === 'yes'));
+  const t1    = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() !== 'yes'));
+  const t2    = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && getTier(i).includes('2')));
+  const t34   = sortByWeightedAge(support.filter(i => !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2')));
+
+  issueCache['p1']    = p1;
+  issueCache['p2']    = p2;
+  issueCache['t1icp'] = t1icp;
+  issueCache['t1']    = t1;
+  issueCache['t2']    = t2;
+  issueCache['t34']   = t34;
+  // Work Queue: ordered concat — P1 → P2 → T1 ICP → T1 → T2 → T3/4
+  issueCache['queue'] = [...p1, ...p2, ...t1icp, ...t1, ...t2, ...t34];
+  issueCache['aging'] = sortByWeightedAge(open.filter(i => {
+    const upd = i.fields.updated || i.fields.created;
+    return upd && (Date.now() - new Date(upd).getTime()) > agingDays * 86400000;
+  }));
+  // Note: resolved bucket is managed separately (lazy load) — don't overwrite here
+
+  // Update counts for all buckets except resolved (which is lazy)
+  ['p1','p2','t1icp','t1','t2','t34','queue','aging'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : 0));
+}
+
+function updateResolvedCount() {
+  if (!issueCache['resolved']) return;
+  const cutoff = Date.now() - resolvedDays * 86400000;
+  const n = issueCache['resolved'].filter(i => { const d = getEffectiveResolvedDate(i); return d && d.getTime() >= cutoff; }).length;
+  const el = document.getElementById('stat-resolved');
+  if (el) el.textContent = n;
+  const cnt = document.getElementById('cnt-resolved');
+  if (cnt) cnt.textContent = n;
+}
+
+// ── Load all buckets (customer/org mode) ──────────────────────────────────────
+async function loadAllBuckets() {
+  ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => {
+    const s = document.getElementById('stat-' + k); if (s) s.textContent = '…';
+    const c = document.getElementById('cnt-' + k); if (c) c.textContent = '…';
+  });
+  // Mark resolved as not-yet-loaded (null = never fetched, [] = fetched but empty)
+  issueCache['resolved'] = null;
+  updateCount('resolved', '—');
+  document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="loading"><div class="spinner"></div><br>${t('loading')}</div></div>`;
+
+  // Build base JQL — open tickets only
+  const contextFilter = selectedOrgs.length > 0 ? orgJql(selectedOrgs) : customerJql(selectedCustomers);
+  let baseJql = `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory != Done ORDER BY created ASC`;
+  baseJql = addAssigneeFilter(baseJql);
+
+  try {
+    const openIssues = await searchIssues(baseJql);
+    splitIntoBuckets(openIssues);
+    updateProductFilterBar(currentTab);
+    updatePriorityFilterBar(currentTab);
+    renderTab(currentTab);
+
+    // Fetch SLA data in background (non-blocking) after open tickets display
+    loadSlaBackground(contextFilter);
+  } catch(e) {
+    document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="empty" style="color:var(--danger)">Error loading tickets: ${escHtml(e.message)}</div></div>`;
+  }
+}
+
+// Lazy resolved fetch — called when user clicks Resolved tab
+// Lazy resolved + SLA fetch — shared 90d window (max)
+// No assignee filter: resolved/SLA are org-wide team metrics
+async function loadResolvedBucket() {
+  // contextFilter is null for default view (no customer/org/preset) — fetches all resolved tickets
+  const hasContext = selectedCustomers.length > 0 || selectedOrgs.length > 0;
+  const contextFilter = (hasContext || activePreset) ? (activePreset ? null : (selectedOrgs.length > 0 ? orgJql(selectedOrgs) : customerJql(selectedCustomers))) : null;
+  // 90d max — covers both the resolved tab (30d default, picker up to 90d) and SLA (needs 90d)
+  const jql = contextFilter
+    ? `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
+    : `project in ${jqlActiveProjects()} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
+  // NOTE: no addAssigneeFilter here — resolved/SLA must be org-wide
+
+  const SLA_FIELDS = 'summary,status,priority,issuetype,created,resolutiondate,statuscategorychangedate,project,customfield_13703,customfield_13874';
+  try {
+    showSlaLoading();
+    console.log('[SLA] Fetching resolved tickets...');
+    const issues = await searchIssues(jql, SLA_FIELDS, 500);
+    console.log('[SLA] Got', issues.length, 'resolved tickets');
+    issueCache['resolved'] = issues;
+    slaCache = issues;
+    updateResolvedCount();
+    hideSlaLoading();
+    updateSlaPanel();
+    saveSlaCacheToSession(); // Save SLA data with 1hr TTL
+    if (currentTab === 'resolved') renderTab('resolved');
+  } catch(e) {
+    console.error('[SLA] Error:', e.message);
+    issueCache['resolved'] = [];
+    updateCount('resolved', '!');
+  }
+}
+
+// Non-blocking SLA background fetch — delegates to loadResolvedBucket (shared data)
+async function loadSlaCacheFromIDB() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get('sla');
+    const result = await new Promise(r => { req.onsuccess = e => r(e.target.result); req.onerror = () => r(null); });
+    db.close();
+    if (!result) return null;
+    if (Date.now() - result.ts > SLA_TTL) return null;
+    // SLA cache key is project-only — independent of preset/customer/org
+    if (result.slaKey !== SLA_SCHEMA + ':' + JSON.stringify([...activeProjects].sort())) return null;
+    return result;
+  } catch(e) { return null; }
+}
+
+async function loadSlaBackground(contextFilter) {
+  if (slaCache) {
+    hideSlaLoading();
+    updateSlaPanel();
+    return;
+  }
+  // Check IDB for cached SLA data before fetching (survives preset/customer switches)
+  const cached = await loadSlaCacheFromIDB();
+  if (cached) {
+    slaCache = cached.data;
+    if (cached.resolved) { issueCache['resolved'] = cached.resolved; updateResolvedCount(); }
+    hideSlaLoading();
+    updateSlaPanel();
+    return;
+  }
+  await loadResolvedBucket();
+}
+
+// ── SLA Panel ─────────────────────────────────────────────────────────────────
+function showSlaLoading() {
+  const label = document.querySelector('.sla-panel-label');
+  if (label) label.innerHTML = 'SLA PERFORMANCE <span class="sla-loading" style="margin-left:6px;"></span>';
+  ['p1','p2','p3'].forEach(p => {
+    [30, 90].forEach(days => {
+      const el = document.getElementById(`sla-${p}-${days}`);
+      const sub = document.getElementById(`sla-${p}-${days}-sub`);
+      if (el) { el.innerHTML = '<span class="sla-loading"></span>'; el.className = 'sla-pct na'; }
+      if (sub) sub.textContent = 'Fetching…';
+    });
+  });
+}
+
+function hideSlaLoading() {
+  const label = document.querySelector('.sla-panel-label');
+  if (label) label.textContent = 'SLA PERFORMANCE';
+}
+
+function updateSlaPanel() {
+  if (!slaCache) return;
+  let slaData = slaCache.filter(i => !isExcludedAscType(i));
+  if (activeProductFilter) { const _sp=activeProductFilter.split(','); slaData=slaData.filter(i=>_sp.includes(i.fields?.project?.key)); }
+  // Tier filter — only apply if cached data has tier field (schema v2+)
+  if (activePreset && slaData.length && slaData[0].fields?.customfield_13703 !== undefined) {
+    if (activePreset==='t1-icp') slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('1')&&(i.fields?.customfield_13874||'').toLowerCase()==='yes');
+    else if (activePreset==='t1-nonicp') slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('1')&&(i.fields?.customfield_13874||'').toLowerCase()!=='yes');
+    else if (activePreset.startsWith('t1')) slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('1'));
+    else if (activePreset==='t2-all') slaData=slaData.filter(i=>(i.fields?.customfield_13703||'').includes('2'));
+  }
+  ['p1','p2','p3'].forEach(p => {
+    [30, 90].forEach(days => {
+      const result = computeSla(slaData, p, days);
+      const pctEl = document.getElementById(`sla-${p}-${days}`);
+      const subEl = document.getElementById(`sla-${p}-${days}-sub`);
+      if (!pctEl) return;
+      if (!result) {
+        pctEl.textContent = '—'; pctEl.className = 'sla-pct na';
+        if (subEl) subEl.textContent = 'No data';
+        return;
+      }
+      const { pct, avgDays } = result;
+      const slaDays = p === 'p1' ? 4/24 : p === 'p2' ? 1 : 5;
+      // Main number: avg days (color-coded against SLA threshold)
+      const ratio = avgDays / slaDays;
+      const colorClass = ratio <= 0.75 ? 'good' : ratio <= 1.0 ? 'warn' : 'bad';
+      pctEl.textContent = avgDays < 1
+        ? (avgDays * 24).toFixed(1) + 'h'
+        : avgDays.toFixed(1) + 'd';
+      pctEl.className = 'sla-pct ' + colorClass;
+      // Sub: hit rate %
+      if (subEl) subEl.textContent = pct + '% within SLA';
+    });
+  });
+}
+
+function computeSla(issues, priority, windowDays) {
+  const cutoff = Date.now() - windowDays * 86400000;
+  const prios = priority === 'p1' ? P1_PRIOS : priority === 'p2' ? P2_PRIOS : P3_PRIOS;
+  const slaHours = priority === 'p1' ? 4 : priority === 'p2' ? 24 : 5 * 24;
+  const recent = issues.filter(i => {
+    const d = getEffectiveResolvedDate(i);
+    return d && d.getTime() >= cutoff && prios.includes(getPriority(i));
+  });
+  if (!recent.length) return null;
+  const hits = recent.filter(i => {
+    const created = new Date(i.fields.created);
+    const resolved = getEffectiveResolvedDate(i);
+    if (!resolved) return false;
+    return (resolved.getTime() - created.getTime()) / 3600000 <= slaHours;
+  });
+  // Average resolution time in days across all resolved tickets
+  const avgDays = recent.reduce((sum, i) => {
+    const created = new Date(i.fields.created);
+    const resolved = getEffectiveResolvedDate(i);
+    return resolved ? sum + (resolved.getTime() - created.getTime()) / 86400000 : sum;
+  }, 0) / recent.length;
+  return { total: recent.length, hits: hits.length, pct: Math.round(hits.length / recent.length * 100), avgDays };
+}
+
+// ── Preset loading ────────────────────────────────────────────────────────────
+function getPresetQueries() {
+  const sup = jqlActiveProjects();
+  const all = jqlProjects(ALL_PROJECTS);
+  return {
+    't1-all':    `project in ${all} AND cf[13703] = "Tier 1" AND statusCategory != Done ORDER BY priority ASC, created ASC`,
+    't1-icp':    `project in ${all} AND cf[13703] = "Tier 1" AND cf[13874] = "Yes" AND statusCategory != Done ORDER BY priority ASC, created ASC`,
+    't1-nonicp': `project in ${all} AND cf[13703] = "Tier 1" AND cf[13874] = "No" AND statusCategory != Done ORDER BY priority ASC, created ASC`,
+    't2-all':    `project in ${all} AND cf[13703] = "Tier 2" AND statusCategory != Done ORDER BY priority ASC, created ASC`,
+    'aging-30':  `project in ${sup} AND statusCategory != Done ORDER BY updated ASC`,
+    'aging-90':  `project in ${sup} AND statusCategory != Done ORDER BY updated ASC`,
+  };
+}
+
+async function loadPreset(key, forceReload) {
+  const QUERIES = getPresetQueries();
+  if (!QUERIES[key]) return;
+
+  if (activePreset === key && !forceReload) {
+    activePreset = '';
+    localStorage.removeItem('sup_preset');
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    clearCustomer();
+    updateURL();
+    return;
+  }
+
+  activePreset = key;
+  selectedCustomers = []; selectedOrgs = [];
+  issueCache = {}; slaCache = null;
+  activeProductFilter = ''; activePriorityFilter = '';
+  localStorage.setItem('sup_preset', key);
+  localStorage.removeItem('sup_customers'); localStorage.removeItem('sup_orgs');
+
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active','loading'));
+  const btn = document.getElementById('preset-' + key);
+  if (btn) btn.classList.add('active','loading');
+  document.getElementById('customer-search').value = '';
+  document.getElementById('org-search').value = '';
+  renderCustomerTags();
+  renderOrgTags();
+  document.getElementById('stats-row').style.display = 'grid';
+  document.getElementById('bucket-tabs').style.display = 'flex';
+  document.getElementById('sla-panel').style.display = 'block';
+  ['p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => { updateCount(k, '…'); });
+  document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="loading"><div class="spinner"></div><br>${t('loading')}</div></div>`;
+  updateURL();
+
+  try {
+    const loadingKey = key;
+    let issues;
+    const cached = presetCache[key];
+    if (!forceReload && cached && Date.now() - cached.ts < PRESET_TTL) {
+      issues = cached.issues;
+    } else {
+      issues = [];
+      let jql = QUERIES[key];
+      jql = addAssigneeFilter(jql);
+      let next = null;
+      do {
+        const params = { jql, fields: SUPPORT_FIELDS, maxResults: 100 };
+        if (next) params.nextPageToken = next;
+        const data = await jiraFetch('/rest/api/3/issue/search', params);
+        const batch = data.issues || [];
+        issues = issues.concat(batch);
+        next = data.nextPageToken || null;
+        if (batch.length < 100) break;
+      } while (next);
+      presetCache[key] = { issues, ts: Date.now() };
+    }
+
+    if (activePreset !== key) return; // stale
+
+    // For aging presets, apply the threshold client-side
+    if (key === 'aging-30' || key === 'aging-90') {
+      const threshold = key === 'aging-90' ? 90 : 30;
+      const filtered = issues.filter(i => {
+        const upd = i.fields.updated || i.fields.created;
+        return upd && (Date.now() - new Date(upd).getTime()) > threshold * 86400000;
+      });
+      issues = filtered;
+    }
+
+    splitIntoBuckets(issues);
+    if (btn) btn.classList.remove('loading');
+
+    // Fetch SLA data in background (non-blocking)
+    loadSlaBackground(null);
+    updateProductFilterBar(currentTab);
+    updatePriorityFilterBar(currentTab);
+    renderTab(currentTab);
+  } catch(e) {
+    if (btn) btn.classList.remove('loading');
+    document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="empty" style="color:var(--danger)">Error: ${escHtml(e.message)}</div></div>`;
+  }
+}
+
+// ── Count / stat update ───────────────────────────────────────────────────────
+function updateCount(key, count) {
+  const s = document.getElementById('stat-' + key); if (s) s.textContent = count;
+  const c = document.getElementById('cnt-' + key);  if (c) c.textContent = count;
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('tab-' + tab); if (el) el.classList.add('active');
+  localStorage.setItem('sup_tab', tab);
+  const rw = document.getElementById('resolved-slider-wrap');
+  if (rw) rw.style.setProperty('display', tab === 'resolved' ? 'flex' : 'none', 'important');
+  const aw = document.getElementById('aging-slider-wrap');
+  if (aw) aw.style.setProperty('display', tab === 'aging' ? 'flex' : 'none', 'important');
+  updateURL();
+  updateProductFilterBar(tab);
+  updatePriorityFilterBar(tab);
+  // Update stat tile for current tab to show filtered count
+  const filteredStatEl = document.getElementById('stat-' + tab);
+  const filteredCntEl  = document.getElementById('cnt-' + tab);
+  if (filteredStatEl && issueCache[tab]) {
+    const rawLen = issueCache[tab].length;
+    if (issues.length !== rawLen) {
+      filteredStatEl.textContent = issues.length + ' / ' + rawLen;
+      if (filteredCntEl) filteredCntEl.textContent = issues.length + ' / ' + rawLen;
+    }
+  }
+  // Lazy-load resolved tickets on first click of that tab
+  if (tab === 'resolved' && issueCache['resolved'] === null) {
+    loadResolvedBucket();
+    return; // renderTab will be called by loadResolvedBucket when done
+  }
+  renderTab(tab);
+}
+
+// ── Filter toggles ────────────────────────────────────────────────────────────
+function toggleActionableFilter() {
+  showActionable = !showActionable;
+  localStorage.setItem('sup_actionable', showActionable.toString());
+  document.getElementById('filter-actionable').classList.toggle('active', showActionable);
+  renderTab(currentTab);
+}
+function toggleEngClosedFilter() {
+  showEngClosed = !showEngClosed;
+  // showEngClosed is session-only, not persisted
+  document.getElementById('filter-eng-closed').classList.toggle('active', showEngClosed);
+  renderTab(currentTab);
+}
+
+// ── Product / Priority filter bars ───────────────────────────────────────────
+function updateProductFilterBar(tab) {
+  const bar = document.getElementById('product-filter-bar');
+  const projects = new Set();
+  Object.values(issueCache).forEach(issues => {
+    if (!Array.isArray(issues)) return;
+    issues.forEach(i => { if (i?.fields?.project?.key) projects.add(i.fields.project.key); });
+  });
+  if (!projects.size) { bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  let html = `<span class="prod-filter-label">${t('filter_by_product')}</span>`;
+  html += `<button class="prod-filter-btn${activeProductFilter===''?' active':''}" data-product="" onclick="setProductFilter('')">${t('all_products')}</button>`;
+  const _sel = activeProductFilter ? activeProductFilter.split(',') : [];
+  Array.from(projects).sort().forEach(p => {
+    html += `<button class="prod-filter-btn${_sel.includes(p)?' active':''}" onclick="toggleProjectFilter('${p}')">${escHtml(p)}</button>`;
+  });
+  bar.innerHTML = html;
+  const sep = document.getElementById('filter-sep');
+  if (sep) sep.style.display = projects.size ? 'block' : 'none';
+}
+
+function updatePriorityFilterBar(tab) {
+  const bar = document.getElementById('priority-filter-bar');
+  const issues = issueCache[tab] || [];
+  const prios = new Set();
+  issues.forEach(i => { if (i.fields.priority && i.fields.priority.name) prios.add(i.fields.priority.name); });
+  if (!prios.size) { bar.style.display = 'none'; bar.classList.remove('visible'); return; }
+  bar.style.display = 'flex'; bar.classList.add('visible');
+  const ORDER = ['Critical','Highest','High','Medium','Low','Lowest','P1','P2','P3','P4'];
+  const sorted = Array.from(prios).sort((a,b) => {
+    const ai = ORDER.indexOf(a), bi = ORDER.indexOf(b);
+    if (ai<0&&bi<0) return a.localeCompare(b); if (ai<0) return 1; if (bi<0) return -1;
+    return ai - bi;
+  });
+  let html = `<span class="prod-filter-label">${t('filter_by_priority')}</span>`;
+  html += `<button class="prod-filter-btn${activePriorityFilter===''?' active':''}" onclick="setPriorityFilter('')">${t('all_products')}</button>`;
+  sorted.forEach(p => {
+    html += `<button class="prod-filter-btn${activePriorityFilter===p?' active':''}" onclick="setPriorityFilter('${p.replace(/'/g,"\\'")}')">${escHtml(p)}</button>`;
+  });
+  html += `<button class="prod-filter-btn${activePriorityFilter==='__none__'?' active':''}" onclick="setPriorityFilter('__none__')">No Priority</button>`;
+  bar.innerHTML = html;
+}
+
+function setProductFilter(product) {
+  activeProductFilter = product;
+  sessionStorage.setItem('sup_product_filter', product);
+  updateURL(); updateSlaPanel(); renderTab(currentTab);
+}
+function toggleProjectFilter(project) {
+  const sel = activeProductFilter ? activeProductFilter.split(',') : [];
+  const idx = sel.indexOf(project);
+  if (idx >= 0) sel.splice(idx, 1); else sel.push(project);
+  activeProductFilter = sel.join(',');
+  sessionStorage.setItem('sup_product_filter', activeProductFilter);
+  updateURL(); updateSlaPanel(); renderTab(currentTab);
+}
+function setPriorityFilter(priority) {
+  activePriorityFilter = priority;
+  sessionStorage.setItem('sup_priority_filter', priority);
+  updateURL(); renderTab(currentTab);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function jqlActiveProjects() {
+  return '(' + activeProjects.map(p => '"' + p + '"').join(', ') + ')';
+}
+function toggleProject(proj, btn) {
+  if (activeProjects.includes(proj)) {
+    if (activeProjects.length === 1) return;
+    activeProjects = activeProjects.filter(p => p !== proj);
+    btn.classList.remove('active');
+  } else {
+    activeProjects = [...activeProjects, proj];
+    btn.classList.add('active');
+  }
+  localStorage.setItem('sup_projects', JSON.stringify(activeProjects));
+  reload();
+}
+function initProjectFilter() {
+  const bar = document.getElementById('project-filter-bar');
+  if (!bar) return;
+  SUPPORT_PROJECTS.forEach(proj => {
+    const btn = document.createElement('button');
+    btn.className = 'proj-filter-btn' + (activeProjects.includes(proj) ? ' active' : '');
+    btn.textContent = proj;
+    btn.onclick = () => toggleProject(proj, btn);
+    bar.appendChild(btn);
+  });
+}
+
+function renderTab(tab) {
+  const panel = document.getElementById('issues-panel');
+  let issues = issueCache[tab];
+  if (!issues) {
+    panel.innerHTML = `<div class="table-container"><div class="loading"><div class="spinner"></div><br>${t('loading')}</div></div>`;
+    return;
+  }
+
+  // Apply resolved day filter
+  if (tab === 'resolved') {
+    const cutoff = Date.now() - resolvedDays * 86400000;
+    issues = issues.filter(i => { const d = getEffectiveResolvedDate(i); return d && d.getTime() >= cutoff; });
+  }
+
+  // Support actionable filter
+  if (showActionable) issues = issues.filter(isActionableStatus);
+
+  // Eng/OPS closed filter
+  if (showEngClosed) issues = issues.filter(hasEngOrOpsClosedLink);
+
+  // Product filter
+  if (activeProductFilter) { const _sp=activeProductFilter.split(','); issues=issues.filter(i=>_sp.includes(i.fields?.project?.key)); }
+
+  // Priority filter
+  if (activePriorityFilter) {
+    if (activePriorityFilter === '__none__') {
+      issues = issues.filter(i => !getPriority(i));
+    } else {
+      const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
+      if (!BUCKET_TABS.includes(tab)) {
+        const pf = activePriorityFilter.toLowerCase();
+        issues = issues.filter(i => {
+          const pn = getPriority(i).toLowerCase();
+          return pn && (pn === pf || pn.includes(pf) || pf.includes(pn));
+        });
+      }
+    }
+  }
+
+  updateProductFilterBar(tab);
+  updatePriorityFilterBar(tab);
+
+  if (!issues.length) {
+    panel.innerHTML = `<div class="table-container"><div class="empty">${t('no_issues')}</div></div>`;
+    return;
+  }
+
+  const TAB_TITLES = {
+    queue: '📋 Work Queue — All Open Tickets',
+    p1: t('tab_title_p1'), p2: t('tab_title_p2'),
+    t1icp: t('tab_title_t1icp'), t1: t('tab_title_t1'),
+    t2: t('tab_title_t2'), t34: t('tab_title_t34'),
+    aging: `${t('tab_title_aging')} ${agingDays}d`,
+    resolved: `${t('tab_title_resolved')} ${resolvedDays}d`,
+  };
+
+  const showCustomerCol = true; // Always show customer column
+
+  // For Work Queue: render with section headers between priority/tier groups
+  let rows;
+  if (tab === 'queue') {
+    rows = renderQueueRows(issues, showCustomerCol);
+  } else {
+    rows = issues.map(issue => renderRow(issue, tab, showCustomerCol)).join('');
+  }
+
+  panel.innerHTML = `
+<div class="table-container">
+  <div class="table-header">
+    <span class="table-title">${TAB_TITLES[tab] || tab}</span>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="table-meta">${issues.length} ${issues.length!==1?t('issues_suffix'):t('issue_suffix')}</span>
+
+      <label class="comment-toggle-wrap" title="Show last comment for each ticket">
+        <span data-i18n="last_comment">${t('last_comment')}</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="comment-toggle" ${showComments?'checked':''}>
+          <span class="toggle-track"></span>
+        </span>
+      </label>
+      <button class="copy-btn" id="copy-btn-${tab}" onclick="copyTable(this,'${tab}')">${t('copy')}</button>
+    </div>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="issues-table">
+    <thead><tr>
+      <th>${t('col_key')}</th>
+      <th>${t('col_summary')}</th>
+      <th>${t('col_status')}</th>
+      <th>${t('col_priority')}</th>
+      <th>${t('col_tier')}</th>
+      <th>${t('col_assignee')}</th>
+      <th>${tab==='resolved'?t('col_updated')+'/Res':t('col_updated')}</th>
+      ${showCustomerCol?`<th>${t('col_customer')}</th>`:''}
+      <th>${t('col_created')}</th>
+      <th>${t('col_product')}</th>
+      <th>Linked Tickets</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </div>
+</div>`;
+
+  // Wire comment toggle
+  const ct = document.getElementById('comment-toggle');
+  if (ct) ct.addEventListener('change', () => {
+    showComments = ct.checked;
+    localStorage.setItem('sup_comments', showComments.toString());
+    renderTab(currentTab);
+  });
+}
+
+// Renders Work Queue with section dividers between priority/tier groups
+function renderQueueRows(issues, showCustomerCol) {
+  const hasPrio = i => !!getPriority(i);
+  const SECTIONS = [
+    { key: 'p1',    label: '🔴 P1 — Critical', filter: isP1 },
+    { key: 'p2',    label: '🟠 P2 — High Priority', filter: i => isP2(i) && !isP1(i) },
+    { key: 't1icp', label: 'Tier 1 ICP', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() === 'yes' },
+    { key: 't1',    label: 'Tier 1', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && getTier(i).includes('1') && getIcp(i).toLowerCase() !== 'yes' },
+    { key: 't2',    label: 'Tier 2', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && getTier(i).includes('2') },
+    { key: 't34',   label: 'Tier 3 / 4', filter: i => hasPrio(i) && !isP1(i) && !isP2(i) && !getTier(i).includes('1') && !getTier(i).includes('2') },
+    { key: 'none',  label: '— No Priority', filter: i => !hasPrio(i) },
+  ];
+  const colSpan = 11; // 10 base cols + customer always shown
+  return SECTIONS.map(section => {
+    const sectionIssues = issues.filter(section.filter);
+    if (!sectionIssues.length) return '';
+    const header = `<tr class="bucket-section-header"><td colspan="${colSpan}">${section.label} <span style="font-weight:400;opacity:.6">(${sectionIssues.length})</span></td></tr>`;
+    return header + sectionIssues.map(i => renderRow(i, 'queue', showCustomerCol)).join('');
+  }).join('');
+}
+
+function renderRow(issue, tab, showCustomerCol) {
+  const f = issue.fields;
+  const key = issue.key;
+  const url = `https://engageware.atlassian.net/browse/${key}`;
+  const summary = f.summary || '';
+  const status  = (f.status && f.status.name) || '';
+  const statusCat = (f.status && f.status.statusCategory && f.status.statusCategory.key) || '';
+  const prio    = getPriority(issue);
+  const tier    = getTier(issue);
+  const icp     = getIcp(issue);
+  const assignee = (f.assignee && f.assignee.displayName) || '—';
+  const prioClass = 'prio-' + prio.toLowerCase().replace(/\s+/g,'-');
+  const products  = (f[CF_PRODUCT] || []).map(p => p.value);
+  const customers = (f[CF_CUST_OUT] || []).map(c => c.value).join(', ');
+  const engClosed = hasEngOrOpsClosedLink(issue);
+
+  let statusClass = '';
+  if (statusCat === 'done') statusClass = 'done';
+  else if (['in progress','in review','in development'].includes(status.toLowerCase())) statusClass = 'inprogress';
+  else if (NON_ACTIONABLE_STATUSES.some(p => status.toLowerCase().includes(p))) statusClass = 'waiting';
+  else if (status.toLowerCase().includes('blocked') || status.toLowerCase().includes('escalat')) statusClass = 'blocked';
+
+  // Date display
+  const resolvedDate = getEffectiveResolvedDate(issue);
+  const dateVal = tab === 'resolved' && resolvedDate ? resolvedDate : new Date(f.updated || f.created || '');
+  const ageMs = Date.now() - dateVal.getTime();
+  const ageDays = Math.floor(ageMs / 86400000);
+  const ageStr = ageDays < 1 ? 'today' : ageDays < 7 ? `${ageDays}d ago` : ageDays < 30 ? `${Math.floor(ageDays/7)}w ago` : `${Math.floor(ageDays/30)}mo ago`;
+  const ageClass = ageDays > 30 ? 'age-old' : ageDays > 14 ? 'age-medium' : '';
+
+  const createdDate = f.created ? new Date(f.created).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}) : '';
+  const ageOpenDays = f.created ? Math.floor((Date.now() - new Date(f.created).getTime()) / 86400000) : 0;
+
+  const productHtml = products.length
+    ? `<div class="product-pills">${products.map(p => `<span class="product-pill">${escHtml(p)}</span>`).join('')}</div>`
+    : '<span style="color:var(--muted)">—</span>';
+
+  const tierHtml = tier ? `<span class="tier-badge">${escHtml(tier)}</span>` : '';
+  const icpHtml  = icp && icp.toLowerCase() === 'yes' ? `<span class="icp-badge">ICP</span>` : '';
+  const engClosedHtml = engClosed ? `<span class="eng-closed-badge">Eng ✓</span>` : '';
+
+  // Linked tickets: Eng + OPS links only, hyperlinked, strikethrough if done
+  const linkedHtml = (() => {
+    const links = f.issuelinks || [];
+    const items = [];
+    for (const link of links) {
+      const linked = link.inwardIssue || link.outwardIssue;
+      if (!linked) continue;
+      const proj = (linked.key || '').split('-')[0];
+      if (!ENGINEERING_PROJECTS.includes(proj) && !OPS_PROJECTS.includes(proj)) continue;
+      const isDone = linked.fields && linked.fields.status && linked.fields.status.statusCategory && linked.fields.status.statusCategory.key === 'done';
+      const lUrl = `https://engageware.atlassian.net/browse/${linked.key}`;
+      const statusName = (linked.fields && linked.fields.status && linked.fields.status.name) || '';
+      const style = isDone ? 'text-decoration:line-through;color:var(--muted)' : 'color:var(--accent)';
+      items.push(`<a href="${lUrl}" target="_blank" rel="noopener" style="font-family:IBM Plex Mono,monospace;font-size:11px;display:block;${style}" title="${escHtml(statusName)}">${linked.key}</a>`);
+    }
+    return items.length ? `<div style="min-width:80px">${items.join('')}</div>` : '<span style="color:var(--muted)">—</span>';
+  })();
+
+  let commentHtml = '';
+  if (showComments) {
+    const comments = (f.comment && f.comment.comments) || [];
+    if (comments.length) {
+      const last = comments[comments.length - 1];
+      const author = (last.author && last.author.displayName) || '';
+      const cDate = last.created ? new Date(last.created).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+      const txt = extractCommentText(last.body);
+      commentHtml = `<tr class="comment-row"><td colspan="100%"><span class="comment-author">${escHtml(author)}</span> · ${escHtml(cDate)}<div class="comment-text">${escHtml(txt.slice(0,500))}${txt.length>500?'…':''}</div></td></tr>`;
+    }
+  }
+
+  return `<tr>
+    <td><a href="${url}" target="_blank" rel="noopener">${key}</a>${engClosedHtml}</td>
+    <td style="max-width:320px"><a href="${url}" target="_blank" rel="noopener" class="summary-link">${escHtml(summary)}</a></td>
+    <td><span class="status-badge ${statusClass}">${escHtml(status)}</span></td>
+    <td style="white-space:nowrap"><span class="priority-dot ${prioClass}"></span>${escHtml(prio)}</td>
+    <td style="white-space:nowrap">${tierHtml}${icpHtml}</td>
+    <td style="font-size:12px;color:var(--muted)">${escHtml(assignee)}</td>
+    <td style="white-space:nowrap"><span class="${ageClass}">${ageStr}</span></td>
+    ${showCustomerCol ? `<td style="font-size:12px;color:var(--muted)">${escHtml(customers)}</td>` : ''}
+    <td style="font-size:12px;color:var(--muted);white-space:nowrap">${createdDate}<br><span style="color:var(--muted);font-size:10px">${ageOpenDays}d open</span></td>
+    <td>${productHtml}</td>
+    <td>${linkedHtml}</td>
+  </tr>${commentHtml}`;
+}
+
+// ── Copy table ────────────────────────────────────────────────────────────────
+function copyTable(btn, tab) {
+  let issues = issueCache[tab] || [];
+  if (tab === 'resolved') {
+    const cutoff = Date.now() - resolvedDays * 86400000;
+    issues = issues.filter(i => { const d = getEffectiveResolvedDate(i); return d && d.getTime() >= cutoff; });
+  }
+  if (showActionable) issues = issues.filter(isActionableStatus);
+  if (showEngClosed) issues = issues.filter(hasEngOrOpsClosedLink);
+  if (activeProductFilter) { const _sp=activeProductFilter.split(','); issues=issues.filter(i=>_sp.includes(i.fields?.project?.key)); }
+  if (activePriorityFilter) {
+    if (activePriorityFilter === '__none__') {
+      issues = issues.filter(i => !getPriority(i));
+    } else {
+      const BUCKET_TABS = ['p1','p2','t1icp','t1','t2','t34'];
+      if (!BUCKET_TABS.includes(tab)) {
+        const pf = activePriorityFilter.toLowerCase();
+        issues = issues.filter(i => {
+          const pn = getPriority(i).toLowerCase();
+          return pn && (pn === pf || pn.includes(pf) || pf.includes(pn));
+        });
+      }
+    }
+  }
+  if (!issues.length) return;
+
+  const showCust = !!activePreset;
+  const headers = [t('col_key'),t('col_summary'),t('col_status'),t('col_priority'),t('col_tier'),'ICP',t('col_assignee'),tab==='resolved'?'Resolved':'Updated'];
+  if (showCust) headers.push(t('col_customer'));
+  headers.push(t('col_created'),t('col_product'));
+  if (showComments) headers.push('Last Comment Author','Last Comment Date','Last Comment');
+
+  const rows = issues.map(issue => {
+    const f = issue.fields;
+    const dateVal = tab === 'resolved' ? (getEffectiveResolvedDate(issue) || new Date(f.updated||f.created||'')) : new Date(f.updated||f.created||'');
+    const row = [
+      issue.key,
+      (f.summary||'').replace(/\t/g,' ').replace(/\n/g,' '),
+      (f.status&&f.status.name)||'',
+      getPriority(issue), getTier(issue), getIcp(issue),
+      (f.assignee&&f.assignee.displayName)||'',
+      dateVal ? dateVal.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '',
+    ];
+    if (showCust) row.push((f[CF_CUST_OUT]||[]).map(c=>c.value).join(', '));
+    row.push(
+      f.created ? new Date(f.created).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '',
+      (f[CF_PRODUCT]||[]).map(p=>p.value).join(', ')
+    );
+    if (showComments) {
+      const comments = (f.comment&&f.comment.comments)||[];
+      if (comments.length) {
+        const last = comments[comments.length-1];
+        row.push((last.author&&last.author.displayName)||'',
+          last.created?new Date(last.created).toLocaleString():'',
+          extractCommentText(last.body).slice(0,500));
+      } else row.push('','','');
+    }
+    return row;
+  });
+
+  const tsv = [headers,...rows].map(r=>r.join('\t')).join('\n');
+  const htmlTable = '<table><thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+r.map(c=>`<td>${String(c).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>`).join('')+'</tr>').join('')+
+    '</tbody></table>';
+
+  const success = () => {
+    btn.classList.add('copied'); btn.textContent = t('copied');
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = t('copy'); }, 2000);
+  };
+  try {
+    navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([htmlTable],{type:'text/html'}),'text/plain':new Blob([tsv],{type:'text/plain'})})]).then(success);
+  } catch(e) { navigator.clipboard.writeText(tsv).then(success); }
+}
+
+// ── Rebuild aging bucket ───────────────────────────────────────────────────────
+function rebuildAgingBucket() {
+  const open = [...(issueCache['p1']||[]),...(issueCache['p2']||[]),...(issueCache['t1icp']||[]),...(issueCache['t1']||[]),...(issueCache['t2']||[]),...(issueCache['t34']||[])];
+  const seen = new Set();
+  const deduped = open.filter(i => { if(seen.has(i.key)) return false; seen.add(i.key); return true; });
+  issueCache['aging'] = sortByWeightedAge(deduped.filter(i => {
+    const upd = i.fields.updated || i.fields.created;
+    return upd && (Date.now() - new Date(upd).getTime()) > agingDays * 86400000;
+  }));
+  updateCount('aging', issueCache['aging'].length);
+}
+
+// ── URL state ─────────────────────────────────────────────────────────────────
+function updateURL() {
+  const params = new URLSearchParams();
+  if (activePreset) params.set('preset', activePreset);
+  else if (selectedCustomers.length > 0) params.set('customer', selectedCustomers.join(','));
+  else if (selectedOrgs.length > 0) params.set('org', selectedOrgs.join(','));
+  if (currentTab && currentTab !== 'queue') params.set('tab', currentTab);
+  if (resolvedDays !== 30) params.set('resolved_days', resolvedDays);
+  if (agingDays !== 30) params.set('aging_days', agingDays);
+  if (activeProductFilter) params.set('product', activeProductFilter);
+  if (activePriorityFilter) params.set('priority', activePriorityFilter);
+  if (assigneeMode !== 'mine-unassigned') params.set('assignee', assigneeMode);
+  const qs = params.toString();
+  window.history.replaceState({}, '', qs ? '?' + qs : window.location.pathname);
+}
+
+// ── Restore from URL state ────────────────────────────────────────────────────
+
+// ── Default view (auto-loads on page open with no saved state) ───────────────
+async function loadDefaultView() {
+  showSlaLoading(); // Always show spinner — replaced by data instantly if cached
+  // Try session cache first
+  const cached = await loadCacheFromSession();
+  if (cached) {
+    issueCache = cached;
+    updateProductFilterBar(currentTab);
+    updatePriorityFilterBar(currentTab);
+    renderTab(currentTab);
+    ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => updateCount(k, issueCache[k] ? issueCache[k].length : (k==='resolved'?'—':0)));
+    updateResolvedCount();
+    if (issueCache['resolved'] && issueCache['resolved'].length) {
+      slaCache = issueCache['resolved'];
+      hideSlaLoading();
+      updateSlaPanel();
+    } else {
+      // Cache has no SLA data yet — fetch in background
+      loadSlaBackground(null);
+    }
+    updateURL();
+    return;
+  }
+  // Show loading state in issues panel
+  const panel = document.getElementById('issues-panel');
+  if (panel) panel.innerHTML = '<div class="table-container"><div class="loading"><div class="spinner"></div><br>Loading tickets…</div></div>';
+  ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => { updateCount(k, '…'); }); updateCount('resolved', '—');
+  issueCache['resolved'] = null; updateCount('resolved', '—');
+
+  let jql = `project in ${jqlActiveProjects()} AND statusCategory != Done ORDER BY created ASC`;
+  jql = addAssigneeFilter(jql);
+  try {
+    const issues = await searchIssues(jql);
+    splitIntoBuckets(issues);
+    updateProductFilterBar(currentTab);
+    updatePriorityFilterBar(currentTab);
+    renderTab(currentTab);
+    loadSlaBackground(null);
+    saveCacheToSession();
+    updateURL();
+  } catch(e) {
+    if (panel) panel.innerHTML = '<div class="table-container"><div class="empty" style="color:var(--danger)">Error loading tickets: ' + escHtml(e.message) + '</div></div>';
+  }
+}
+
+function clearAllState() {
+  ['sup_customers','sup_orgs','sup_customer','sup_org','sup_preset','sup_tab','sup_assignee_mode',
+   'sup_product_filter','sup_priority_filter','sup_projects'].forEach(k => localStorage.removeItem(k));
+  clearSessionCache();
+  window.location.href = window.location.pathname;
+}
+
+function restoreFromState() {
+  const urlCustomer  = sessionStorage.getItem('sup_pending_customer');
+  const urlOrg       = sessionStorage.getItem('sup_pending_org');
+  const urlTab       = sessionStorage.getItem('sup_pending_tab');
+  const urlPreset    = sessionStorage.getItem('sup_pending_preset');
+  sessionStorage.removeItem('sup_pending_customer');
+  sessionStorage.removeItem('sup_pending_org');
+  sessionStorage.removeItem('sup_pending_tab');
+  sessionStorage.removeItem('sup_pending_preset');
+
+  const urlProduct  = sessionStorage.getItem('sup_product_filter');
+  if (urlProduct !== null) { activeProductFilter = urlProduct; }
+  const urlPriority = sessionStorage.getItem('sup_priority_filter');
+  if (urlPriority !== null) { activePriorityFilter = urlPriority; }
+
+  // Also read directly from URL if present (e.g. pasted link)
+  const p = new URLSearchParams(window.location.search);
+  const directCustomer = p.get('customer');
+  const directOrg      = p.get('org');
+  const directPreset   = p.get('preset');
+  const directTab      = p.get('tab');
+  const directAssignee = p.get('assignee');
+  if (p.get('resolved_days')) { resolvedDays = parseInt(p.get('resolved_days')); localStorage.setItem('sup_resolved_days', resolvedDays); }
+  if (p.get('aging_days'))    { agingDays    = parseInt(p.get('aging_days'));    localStorage.setItem('sup_aging_days',    agingDays);    }
+  if (p.get('product'))  { activeProductFilter  = p.get('product');  }
+  if (p.get('priority')) { activePriorityFilter = p.get('priority'); }
+  if (directAssignee) { assigneeMode = directAssignee; localStorage.setItem('sup_assignee_mode', assigneeMode); }
+
+  // Update day picker buttons
+  document.querySelectorAll('.day-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.getAttribute('data-days')) === resolvedDays);
+  });
+  document.querySelectorAll('.aging-day-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.getAttribute('data-days')) === agingDays);
+  });
+
+  // Restore assignee toggle UI
+  document.getElementById('assignee-btn-mine').classList.toggle('active', assigneeMode === 'mine-unassigned');
+  document.getElementById('assignee-btn-all').classList.toggle('active', assigneeMode === 'all');
+
+  function findMatch(value, list) {
+    if (!value) return null;
+    const exact = list.find(x => x === value);
+    if (exact) return exact;
+    const lower = value.toLowerCase();
+    return list.find(x => x.toLowerCase().includes(lower)) || null;
+  }
+
+  function restoreTab(tab) {
+    if (!tab) return;
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const el = document.getElementById('tab-' + tab); if (el) el.classList.add('active');
+    const rw = document.getElementById('resolved-slider-wrap');
+    if (rw) rw.style.setProperty('display', tab === 'resolved' ? 'flex' : 'none', 'important');
+    const aw = document.getElementById('aging-slider-wrap');
+    if (aw) aw.style.setProperty('display', tab === 'aging' ? 'flex' : 'none', 'important');
+  }
+
+  // Clean base URL (no params) = fresh start. Params present = bookmarked/shared link = restore from localStorage.
+  const hasUrlParams = window.location.search.length > 1;
+
+  function parseStoredMulti(val) {
+    if (!val) return [];
+    try { const arr = JSON.parse(val); if (Array.isArray(arr)) return arr; } catch(e) {}
+    return val.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  const savedCustomerStr = urlCustomer || directCustomer || (hasUrlParams ? localStorage.getItem('sup_customers') || localStorage.getItem('sup_customer') : null);
+  const savedOrgStr      = urlOrg      || directOrg      || (hasUrlParams ? localStorage.getItem('sup_orgs') || localStorage.getItem('sup_org') : null);
+  const savedTab         = urlTab      || directTab       || (hasUrlParams ? localStorage.getItem('sup_tab') : null);
+  const savedPreset      = urlPreset   || directPreset    || (hasUrlParams ? localStorage.getItem('sup_preset') : null);
+
+  const savedCustomers   = parseStoredMulti(savedCustomerStr);
+  const savedOrgs        = parseStoredMulti(savedOrgStr);
+  const matchedCustomers = savedCustomers.map(n => findMatch(n, allCustomers)).filter(Boolean);
+  const matchedOrgs      = savedOrgs.map(n => findMatch(n, allOrgs)).filter(Boolean);
+
+  if (matchedCustomers.length > 0) {
+    selectedCustomers = matchedCustomers;
+    restoreTab(savedTab);
+    renderCustomerTags();
+    document.getElementById('stats-row').style.display = 'grid';
+    document.getElementById('bucket-tabs').style.display = 'flex';
+    document.getElementById('sla-panel').style.display = 'block';
+    localStorage.setItem('sup_customers', JSON.stringify(selectedCustomers));
+    updateURL(); loadAllBuckets();
+  } else if (matchedOrgs.length > 0) {
+    selectedOrgs = matchedOrgs;
+    restoreTab(savedTab);
+    renderOrgTags();
+    document.getElementById('stats-row').style.display = 'grid';
+    document.getElementById('bucket-tabs').style.display = 'flex';
+    document.getElementById('sla-panel').style.display = 'block';
+    localStorage.setItem('sup_orgs', JSON.stringify(selectedOrgs));
+    updateURL(); loadAllBuckets();
+  } else if (savedPreset && getPresetQueries()[savedPreset]) { restoreTab(savedTab); loadPreset(savedPreset); }
+  else { restoreTab(savedTab); loadDefaultView(); } // No saved state — load default view automatically
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function extractCommentText(body) {
+  if (!body) return '';
+  if (typeof body === 'string') return body;
+  function walk(node) {
+    if (!node) return '';
+    if (node.type === 'text') return node.text || '';
+    if (node.content) return node.content.map(walk).join('');
+    return '';
+  }
+  return walk(body);
+}
+
+function relAge(dateStr) {
+  if (!dateStr) return '—';
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const d = Math.floor(ms / 86400000);
+  if (d < 1) return 'today'; if (d < 7) return d + 'd ago';
+  if (d < 30) return Math.floor(d/7) + 'w ago';
+  return Math.floor(d/30) + 'mo ago';
+}
+
+// ── initApp ───────────────────────────────────────────────────────────────────
+async function initApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('auth-btn').textContent = t('sign_out');
+  document.getElementById('auth-btn').onclick = logout;
+  document.getElementById('auth-btn').className = 'secondary';
+  const clearBtn = document.getElementById('clear-state-btn'); if (clearBtn) clearBtn.style.display = 'inline-block';
+
+  // Show assignee row
+  document.getElementById('assignee-row').style.display = 'flex';
+
+  // Wire resolved day buttons
+  document.querySelectorAll('.day-btn').forEach(btn => {
+    const days = parseInt(btn.getAttribute('data-days'));
+    btn.classList.toggle('active', days === resolvedDays);
+    btn.addEventListener('click', () => {
+      resolvedDays = days;
+      localStorage.setItem('sup_resolved_days', resolvedDays);
+      document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateURL();
+      updateResolvedCount();
+      if (currentTab === 'resolved') renderTab('resolved');
+    });
+  });
+
+  // Wire aging day buttons
+  document.querySelectorAll('.aging-day-btn').forEach(btn => {
+    const days = parseInt(btn.getAttribute('data-days'));
+    btn.classList.toggle('active', days === agingDays);
+    btn.addEventListener('click', () => {
+      agingDays = days;
+      localStorage.setItem('sup_aging_days', agingDays);
+      document.querySelectorAll('.aging-day-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateURL();
+      rebuildAgingBucket();
+      if (currentTab === 'aging') renderTab('aging');
+    });
+  });
+
+  // Wire filter toggle initial state
+  document.getElementById('filter-actionable').classList.toggle('active', showActionable);
+  document.getElementById('filter-eng-closed').classList.toggle('active', showEngClosed);
+
+  // Load user info + customer/org lists in parallel
+  fetchCurrentUser(); await Promise.all([loadCustomers(), loadOrgs()]);
+
+  // Wire search boxes
+  setupCustomerSearch();
+  setupOrgSearch();
+
+  applyLang();
+  restoreFromState();
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  applyLang();
+  if (accessToken) { await initApp(); return; }
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('code')) {
+    const ok = await handleCallback();
+    if (ok) await initApp();
+    return;
+  }
+  showAuthScreen();
+}
+
+init();
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+(function() {
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('sup_theme') || 'dark';
+  applyTheme(saved);
+  btn.addEventListener('click', () => {
+    const curr = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = curr === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem('sup_theme', next);
+  });
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  }
+})();
+</script>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0607.1554</div>
+</body>
+</html>
