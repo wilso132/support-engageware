@@ -91,10 +91,7 @@
   .dropdown-list.open { display:block; }
   .dropdown-item { padding:9px 14px; font-size:13px; cursor:pointer; transition:background .1s; }
   .dropdown-item:hover,.dropdown-item.selected { background:var(--border); }
-  #customer-badge { display:none; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 14px; font-size:13px; font-weight:500; }
-  #customer-badge.visible { display:flex; }
-  #clear-customer { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; line-height:1; padding:0; }
-  #clear-customer:hover { color:var(--danger); }
+
 
   /* ── SLA Panel ── */
   #sla-panel { margin-bottom:1.5rem; }
@@ -217,6 +214,14 @@
   /* ── Version tag ── */
   #version-tag { position:fixed; bottom:12px; right:16px; font-size:10px; font-family:'IBM Plex Mono',monospace; color:var(--muted); display:flex; align-items:center; gap:5px; z-index:50; }
   #version-tag img { width:14px; height:14px; opacity:.5; }
+
+  /* ── Multi-select tags ── */
+  .multiselect-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+  .ms-tag { display:inline-flex; align-items:center; gap:4px; background:var(--surface2); border:1px solid var(--accent); border-radius:6px; padding:3px 8px; font-size:12px; font-weight:500; color:var(--text); }
+  .ms-tag-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; line-height:1; padding:0; margin-left:2px; }
+  .ms-tag-remove:hover { color:var(--danger); }
+  .dropdown-item.selected-item { color:var(--accent); font-weight:600; }
+  .dropdown-item.selected-item::before { content:'✓ '; }
 </style>
 </head>
 <body>
@@ -275,6 +280,7 @@
         <input type="text" id="customer-search" data-i18n-placeholder="search_customers" placeholder="Search customers…" autocomplete="off">
         <div class="dropdown-list" id="customer-dropdown-list"></div>
       </div>
+      <div id="customer-tags" class="multiselect-tags"></div>
     </div>
     <div class="or-separator" style="margin-top:20px;">or</div>
     <div class="search-box-wrap">
@@ -283,10 +289,7 @@
         <input type="text" id="org-search" data-i18n-placeholder="search_orgs" placeholder="Search organizations…" autocomplete="off">
         <div class="dropdown-list" id="org-dropdown-list"></div>
       </div>
-    </div>
-    <div id="customer-badge">
-      <span id="badge-name"></span>
-      <button id="clear-customer" onclick="clearCustomer()" title="Clear">✕</button>
+      <div id="org-tags" class="multiselect-tags"></div>
     </div>
   </div>
 
@@ -576,8 +579,8 @@ let currentUserName  = '';
 let assigneeMode     = localStorage.getItem('sup_assignee_mode') || 'mine-unassigned';
 let allCustomers     = [];
 let allOrgs          = [];
-let selectedCustomer = null;
-let selectedOrg      = null;
+let selectedCustomers = [];  // multi-select
+let selectedOrgs      = [];  // multi-select
 let activePreset     = '';
 let currentTab       = 'queue';
 let resolvedDays     = parseInt(localStorage.getItem('sup_resolved_days') || '30');
@@ -595,7 +598,7 @@ let presetCache      = {};  // key -> {issues, ts}
 // ── IndexedDB cache (survives page refresh, handles full ticket data + comments) ──
 const IDB_NAME = 'sup-cache', IDB_STORE = 'tickets';
 function getCacheKey() {
-  return JSON.stringify({ preset: activePreset, customer: selectedCustomer, org: selectedOrg, assignee: assigneeMode, projects: [...activeProjects].sort() });
+  return JSON.stringify({ preset: activePreset, customers: [...selectedCustomers].sort(), orgs: [...selectedOrgs].sort(), assignee: assigneeMode, projects: [...activeProjects].sort() });
 }
 function openIDB() {
   return new Promise((res, rej) => {
@@ -665,7 +668,7 @@ async function clearSessionCache() {
 
 const TICKET_TTL     = 5 * 60 * 1000;   // 5 minutes for open tickets
 const SLA_TTL        = 60 * 60 * 1000;  // 1 hour for SLA/resolved data
-const SLA_SCHEMA     = 'v3'; // increment when SLA_FIELDS change to bust old cache
+const SLA_SCHEMA     = 'v4'; // bumped: added issuetype to SLA_FIELDS // increment when SLA_FIELDS change to bust old cache
 const PRESET_TTL     = 60 * 60 * 1000;  // 1 hour for preset data
 const CUSTOMER_TTL   = 4 * 60 * 60 * 1000; // 4 hours for customer/org lists
 
@@ -808,7 +811,7 @@ function setAssigneeMode(mode) {
   document.getElementById('assignee-btn-mine').classList.toggle('active', mode === 'mine-unassigned');
   document.getElementById('assignee-btn-all').classList.toggle('active', mode === 'all');
   updateURL();
-  if (selectedCustomer || selectedOrg || activePreset) reload(); else loadDefaultView();
+  if (selectedCustomers.length > 0 || selectedOrgs.length > 0 || activePreset) reload(); else loadDefaultView();
 }
 
 function assigneeJql() {
@@ -879,75 +882,143 @@ async function loadOrgs() {
   } catch(e) { console.warn('[Support] Could not load orgs:', e); }
 }
 
-function wireSearchBox(inputId, listId, list, onSelect) {
-  const inp = document.getElementById(inputId);
-  const listEl = document.getElementById(listId);
+function setupCustomerSearch() {
+  const inp = document.getElementById('customer-search');
+  const listEl = document.getElementById('customer-dropdown-list');
+  function renderList(items) {
+    listEl.innerHTML = items.map(n => {
+      const sel = selectedCustomers.includes(n);
+      return `<div class="dropdown-item${sel ? ' selected-item' : ''}" onclick="selectCustomer('${n.replace(/'/g, "\'")}')">${escHtml(n)}</div>`;
+    }).join('');
+  }
   inp.addEventListener('input', () => {
     const q = inp.value.toLowerCase();
-    const filtered = q.length < 1 ? list.slice(0,80) : list.filter(x => x.toLowerCase().includes(q)).slice(0,80);
-    listEl.innerHTML = filtered.map(c => `<div class="dropdown-item" onclick="(${onSelect.toString()})('${c.replace(/'/g,"\\'")}')">${escHtml(c)}</div>`).join('');
+    const filtered = allCustomers.filter(x => x.toLowerCase().includes(q)).slice(0, 80);
+    renderList(filtered);
     listEl.classList.toggle('open', filtered.length > 0);
   });
   inp.addEventListener('focus', () => {
-    if (!inp.value) {
-      listEl.innerHTML = list.slice(0,80).map(c => `<div class="dropdown-item" onclick="(${onSelect.toString()})('${c.replace(/'/g,"\\'")}')">${escHtml(c)}</div>`).join('');
-      listEl.classList.add('open');
-    }
+    const q = inp.value.toLowerCase();
+    const filtered = q ? allCustomers.filter(x => x.toLowerCase().includes(q)).slice(0, 80) : allCustomers.slice(0, 80);
+    renderList(filtered);
+    if (filtered.length) listEl.classList.add('open');
   });
   document.addEventListener('click', e => {
-    if (!document.getElementById(inputId === 'customer-search' ? 'customer-dropdown' : 'org-dropdown').contains(e.target))
+    if (!document.getElementById('customer-dropdown').contains(e.target))
+      listEl.classList.remove('open');
+  });
+}
+function setupOrgSearch() {
+  const inp = document.getElementById('org-search');
+  const listEl = document.getElementById('org-dropdown-list');
+  function renderList(items) {
+    listEl.innerHTML = items.map(n => {
+      const sel = selectedOrgs.includes(n);
+      return `<div class="dropdown-item${sel ? ' selected-item' : ''}" onclick="selectOrg('${n.replace(/'/g, "\'")}')">${escHtml(n)}</div>`;
+    }).join('');
+  }
+  inp.addEventListener('input', () => {
+    const q = inp.value.toLowerCase();
+    const filtered = allOrgs.filter(x => x.toLowerCase().includes(q)).slice(0, 80);
+    renderList(filtered);
+    listEl.classList.toggle('open', filtered.length > 0);
+  });
+  inp.addEventListener('focus', () => {
+    const q = inp.value.toLowerCase();
+    const filtered = q ? allOrgs.filter(x => x.toLowerCase().includes(q)).slice(0, 80) : allOrgs.slice(0, 80);
+    renderList(filtered);
+    if (filtered.length) listEl.classList.add('open');
+  });
+  document.addEventListener('click', e => {
+    if (!document.getElementById('org-dropdown').contains(e.target))
       listEl.classList.remove('open');
   });
 }
 
 // ── Selection ─────────────────────────────────────────────────────────────────
 function selectCustomer(name) {
-  selectedCustomer = name; selectedOrg = null; activePreset = '';
-  resetFilters();
-  document.getElementById('customer-search').value = '';
-  document.getElementById('org-search').value = '';
+  const idx = selectedCustomers.indexOf(name);
+  if (idx >= 0) {
+    selectedCustomers.splice(idx, 1);
+  } else {
+    selectedCustomers.push(name);
+    selectedOrgs = [];
+  }
+  if (selectedCustomers.length === 0 && selectedOrgs.length === 0) { clearCustomer(); return; }
+  if (selectedCustomers.length === 1 && idx < 0) {
+    activePreset = '';
+    resetFilters();
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    issueCache = {}; slaCache = null; clearSessionCache();
+  }
   document.getElementById('customer-dropdown-list').classList.remove('open');
-  document.getElementById('badge-name').textContent = name;
-  document.getElementById('customer-badge').classList.add('visible');
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('bucket-tabs').style.display = 'flex';
   document.getElementById('sla-panel').style.display = 'block';
-  localStorage.setItem('sup_customer', name);
-  localStorage.removeItem('sup_org'); localStorage.removeItem('sup_preset');
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  localStorage.setItem('sup_customers', JSON.stringify(selectedCustomers));
+  localStorage.removeItem('sup_orgs'); localStorage.removeItem('sup_preset');
+  renderCustomerTags();
+  renderOrgTags();
   updateURL(); loadAllBuckets();
 }
 
 function selectOrg(name) {
-  selectedOrg = name; selectedCustomer = null; activePreset = '';
-  resetFilters();
-  document.getElementById('org-search').value = '';
-  document.getElementById('customer-search').value = '';
+  const idx = selectedOrgs.indexOf(name);
+  if (idx >= 0) {
+    selectedOrgs.splice(idx, 1);
+  } else {
+    selectedOrgs.push(name);
+    selectedCustomers = [];
+  }
+  if (selectedOrgs.length === 0 && selectedCustomers.length === 0) { clearCustomer(); return; }
+  if (selectedOrgs.length === 1 && idx < 0) {
+    activePreset = '';
+    resetFilters();
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    issueCache = {}; slaCache = null; clearSessionCache();
+  }
   document.getElementById('org-dropdown-list').classList.remove('open');
-  document.getElementById('badge-name').textContent = name;
-  document.getElementById('customer-badge').classList.add('visible');
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('bucket-tabs').style.display = 'flex';
   document.getElementById('sla-panel').style.display = 'block';
-  localStorage.setItem('sup_org', name);
-  localStorage.removeItem('sup_customer'); localStorage.removeItem('sup_preset');
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  localStorage.setItem('sup_orgs', JSON.stringify(selectedOrgs));
+  localStorage.removeItem('sup_customers'); localStorage.removeItem('sup_preset');
+  renderCustomerTags();
+  renderOrgTags();
   updateURL(); loadAllBuckets();
 }
 
 function clearCustomer() {
-  selectedCustomer = null; selectedOrg = null;
+  selectedCustomers = []; selectedOrgs = [];
   issueCache = {}; slaCache = null;
-  localStorage.removeItem('sup_customer'); localStorage.removeItem('sup_org'); localStorage.removeItem('sup_tab');
-  document.getElementById('customer-badge').classList.remove('visible');
-  
-  
-  
+  localStorage.removeItem('sup_customers'); localStorage.removeItem('sup_orgs'); localStorage.removeItem('sup_tab');
   document.getElementById('issues-panel').innerHTML = '';
   document.getElementById('customer-search').value = '';
   document.getElementById('org-search').value = '';
+  renderCustomerTags();
+  renderOrgTags();
   window.history.replaceState({}, '', window.location.pathname);
 }
+
+// ── Tag chip rendering ────────────────────────────────────────────────────────
+function renderCustomerTags() {
+  const el = document.getElementById('customer-tags');
+  if (!el) return;
+  el.innerHTML = selectedCustomers.map(n =>
+    `<span class="ms-tag">${escHtml(n)}<button class="ms-tag-remove" onclick="removeCustomer('${n.replace(/'/g, "\'")}')">&#215;</button></span>`
+  ).join('');
+}
+function renderOrgTags() {
+  const el = document.getElementById('org-tags');
+  if (!el) return;
+  el.innerHTML = selectedOrgs.map(n =>
+    `<span class="ms-tag">${escHtml(n)}<button class="ms-tag-remove" onclick="removeOrg('${n.replace(/'/g, "\'")}')">&#215;</button></span>`
+  ).join('');
+}
+function removeCustomer(name) { selectCustomer(name); }
+function removeOrg(name)      { selectOrg(name); }
 
 function resetFilters() {
   issueCache = {}; slaCache = null; clearSessionCache();
@@ -958,14 +1029,22 @@ function resetFilters() {
 
 function reload() {
   if (activePreset) { loadPreset(activePreset, true); }
-  else if (selectedCustomer || selectedOrg) { loadAllBuckets(); }
+  else if (selectedCustomers.length > 0 || selectedOrgs.length > 0) { loadAllBuckets(); }
 }
 
 // ── JQL helpers ───────────────────────────────────────────────────────────────
 function jqlProjects(p) { return '(' + p.map(x => `"${x}"`).join(', ') + ')'; }
-function customerJql(c) { return `${CF_CUSTOMER} = "${c}"`; }
-function orgJql(o)      { return `cf[11300] = "${o}"`; }
-function contextJql()   { return selectedOrg ? orgJql(selectedOrg) : customerJql(selectedCustomer); }
+function customerJql(c) {
+  const arr = Array.isArray(c) ? c : [c];
+  if (arr.length === 1) return `${CF_CUSTOMER} = "${arr[0]}"`;
+  return `${CF_CUSTOMER} in (${arr.map(x => '"' + x + '"').join(', ')})`;
+}
+function orgJql(o) {
+  const arr = Array.isArray(o) ? o : [o];
+  if (arr.length === 1) return `cf[11300] = "${arr[0]}"`;
+  return `cf[11300] in (${arr.map(x => '"' + x + '"').join(', ')})`;
+}
+function contextJql() { return selectedOrgs.length > 0 ? orgJql(selectedOrgs) : customerJql(selectedCustomers); }
 
 // ── Issue helpers ─────────────────────────────────────────────────────────────
 function getPriority(issue) { return (issue.fields.priority && issue.fields.priority.name) || ''; }
@@ -980,6 +1059,13 @@ function isIcpOrTier1(issue) {
 function isActionableStatus(issue) {
   const s = ((issue.fields.status && issue.fields.status.name) || '').toLowerCase();
   return !NON_ACTIONABLE_STATUSES.some(p => s.includes(p));
+}
+// ASC Problem + Suggestion tickets are internal tracking tickets — not customer-facing support tickets.
+// Exclude them from all dashboard views and SLA calculations.
+function isExcludedAscType(issue) {
+  const proj = issue.fields.project && issue.fields.project.key;
+  const type = issue.fields.issuetype && issue.fields.issuetype.name;
+  return proj === 'ASC' && (type === 'Problem' || type === 'Suggestion');
 }
 function getEffectiveResolvedDate(issue) {
   const f = issue.fields;
@@ -1012,7 +1098,7 @@ function sortByWeightedAge(issues) {
 function splitIntoBuckets(issues) {
   const open   = issues.filter(i => i.fields.status && i.fields.status.statusCategory && i.fields.status.statusCategory.key !== 'done');
   const done   = issues.filter(i => i.fields.status && i.fields.status.statusCategory && i.fields.status.statusCategory.key === 'done');
-  const support = open.filter(i => i.fields.project && SUPPORT_PROJECTS.includes(i.fields.project.key));
+  const support = open.filter(i => i.fields.project && SUPPORT_PROJECTS.includes(i.fields.project.key) && !isExcludedAscType(i));
 
   const p1    = sortByWeightedAge(support.filter(isP1));
   const p2    = sortByWeightedAge(support.filter(i => isP2(i) && !isP1(i)));
@@ -1051,7 +1137,6 @@ function updateResolvedCount() {
 
 // ── Load all buckets (customer/org mode) ──────────────────────────────────────
 async function loadAllBuckets() {
-  const ctx = selectedCustomer || selectedOrg;
   ['queue','p1','p2','t1icp','t1','t2','t34','aging','resolved'].forEach(k => {
     const s = document.getElementById('stat-' + k); if (s) s.textContent = '…';
     const c = document.getElementById('cnt-' + k); if (c) c.textContent = '…';
@@ -1062,7 +1147,7 @@ async function loadAllBuckets() {
   document.getElementById('issues-panel').innerHTML = `<div class="table-container"><div class="loading"><div class="spinner"></div><br>${t('loading')}</div></div>`;
 
   // Build base JQL — open tickets only
-  const contextFilter = selectedOrg ? orgJql(selectedOrg) : customerJql(ctx);
+  const contextFilter = selectedOrgs.length > 0 ? orgJql(selectedOrgs) : customerJql(selectedCustomers);
   let baseJql = `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory != Done ORDER BY created ASC`;
   baseJql = addAssigneeFilter(baseJql);
 
@@ -1084,16 +1169,16 @@ async function loadAllBuckets() {
 // Lazy resolved + SLA fetch — shared 90d window (max)
 // No assignee filter: resolved/SLA are org-wide team metrics
 async function loadResolvedBucket() {
-  const ctx = selectedCustomer || selectedOrg;
   // contextFilter is null for default view (no customer/org/preset) — fetches all resolved tickets
-  const contextFilter = (ctx || activePreset) ? (activePreset ? null : (selectedOrg ? orgJql(selectedOrg) : customerJql(ctx))) : null;
+  const hasContext = selectedCustomers.length > 0 || selectedOrgs.length > 0;
+  const contextFilter = (hasContext || activePreset) ? (activePreset ? null : (selectedOrgs.length > 0 ? orgJql(selectedOrgs) : customerJql(selectedCustomers))) : null;
   // 90d max — covers both the resolved tab (30d default, picker up to 90d) and SLA (needs 90d)
   const jql = contextFilter
     ? `project in ${jqlActiveProjects()} AND ${contextFilter} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`
     : `project in ${jqlActiveProjects()} AND statusCategory = Done AND resolved >= "-90d" ORDER BY resolutiondate DESC`;
   // NOTE: no addAssigneeFilter here — resolved/SLA must be org-wide
 
-  const SLA_FIELDS = 'summary,status,priority,created,resolutiondate,statuscategorychangedate,project,customfield_13703,customfield_13874';
+  const SLA_FIELDS = 'summary,status,priority,issuetype,created,resolutiondate,statuscategorychangedate,project,customfield_13703,customfield_13874';
   try {
     showSlaLoading();
     console.log('[SLA] Fetching resolved tickets...');
@@ -1168,7 +1253,7 @@ function hideSlaLoading() {
 
 function updateSlaPanel() {
   if (!slaCache) return;
-  let slaData = slaCache;
+  let slaData = slaCache.filter(i => !isExcludedAscType(i));
   if (activeProductFilter) { const _sp=activeProductFilter.split(','); slaData=slaData.filter(i=>_sp.includes(i.fields?.project?.key)); }
   // Tier filter — only apply if cached data has tier field (schema v2+)
   if (activePreset && slaData.length && slaData[0].fields?.customfield_13703 !== undefined) {
@@ -1255,18 +1340,19 @@ async function loadPreset(key, forceReload) {
   }
 
   activePreset = key;
-  selectedCustomer = null; selectedOrg = null;
+  selectedCustomers = []; selectedOrgs = [];
   issueCache = {}; slaCache = null;
   activeProductFilter = ''; activePriorityFilter = '';
   localStorage.setItem('sup_preset', key);
-  localStorage.removeItem('sup_customer'); localStorage.removeItem('sup_org');
+  localStorage.removeItem('sup_customers'); localStorage.removeItem('sup_orgs');
 
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active','loading'));
   const btn = document.getElementById('preset-' + key);
   if (btn) btn.classList.add('active','loading');
-  document.getElementById('customer-badge').classList.remove('visible');
   document.getElementById('customer-search').value = '';
   document.getElementById('org-search').value = '';
+  renderCustomerTags();
+  renderOrgTags();
   document.getElementById('stats-row').style.display = 'grid';
   document.getElementById('bucket-tabs').style.display = 'flex';
   document.getElementById('sla-panel').style.display = 'block';
@@ -1774,8 +1860,8 @@ function rebuildAgingBucket() {
 function updateURL() {
   const params = new URLSearchParams();
   if (activePreset) params.set('preset', activePreset);
-  else if (selectedCustomer) params.set('customer', selectedCustomer);
-  else if (selectedOrg) params.set('org', selectedOrg);
+  else if (selectedCustomers.length > 0) params.set('customer', selectedCustomers.join(','));
+  else if (selectedOrgs.length > 0) params.set('org', selectedOrgs.join(','));
   if (currentTab && currentTab !== 'queue') params.set('tab', currentTab);
   if (resolvedDays !== 30) params.set('resolved_days', resolvedDays);
   if (agingDays !== 30) params.set('aging_days', agingDays);
@@ -1834,7 +1920,7 @@ async function loadDefaultView() {
 }
 
 function clearAllState() {
-  ['sup_customer','sup_org','sup_preset','sup_tab','sup_assignee_mode',
+  ['sup_customers','sup_orgs','sup_customer','sup_org','sup_preset','sup_tab','sup_assignee_mode',
    'sup_product_filter','sup_priority_filter','sup_projects'].forEach(k => localStorage.removeItem(k));
   clearSessionCache();
   window.location.href = window.location.pathname;
@@ -1901,17 +1987,42 @@ function restoreFromState() {
 
   // Clean base URL (no params) = fresh start. Params present = bookmarked/shared link = restore from localStorage.
   const hasUrlParams = window.location.search.length > 1;
-  const savedCustomer = urlCustomer || directCustomer || (hasUrlParams ? localStorage.getItem('sup_customer') : null);
-  const savedOrg      = urlOrg      || directOrg      || (hasUrlParams ? localStorage.getItem('sup_org') : null);
-  const savedTab      = urlTab      || directTab       || (hasUrlParams ? localStorage.getItem('sup_tab') : null);
-  const savedPreset   = urlPreset   || directPreset    || (hasUrlParams ? localStorage.getItem('sup_preset') : null);
 
-  const matchedCustomer = findMatch(savedCustomer, allCustomers);
-  const matchedOrg      = findMatch(savedOrg, allOrgs);
+  function parseStoredMulti(val) {
+    if (!val) return [];
+    try { const arr = JSON.parse(val); if (Array.isArray(arr)) return arr; } catch(e) {}
+    return val.split(',').map(s => s.trim()).filter(Boolean);
+  }
 
-  if (matchedCustomer) { restoreTab(savedTab); selectCustomer(matchedCustomer); }
-  else if (matchedOrg) { restoreTab(savedTab); selectOrg(matchedOrg); }
-  else if (savedPreset && getPresetQueries()[savedPreset]) { restoreTab(savedTab); loadPreset(savedPreset); }
+  const savedCustomerStr = urlCustomer || directCustomer || (hasUrlParams ? localStorage.getItem('sup_customers') || localStorage.getItem('sup_customer') : null);
+  const savedOrgStr      = urlOrg      || directOrg      || (hasUrlParams ? localStorage.getItem('sup_orgs') || localStorage.getItem('sup_org') : null);
+  const savedTab         = urlTab      || directTab       || (hasUrlParams ? localStorage.getItem('sup_tab') : null);
+  const savedPreset      = urlPreset   || directPreset    || (hasUrlParams ? localStorage.getItem('sup_preset') : null);
+
+  const savedCustomers   = parseStoredMulti(savedCustomerStr);
+  const savedOrgs        = parseStoredMulti(savedOrgStr);
+  const matchedCustomers = savedCustomers.map(n => findMatch(n, allCustomers)).filter(Boolean);
+  const matchedOrgs      = savedOrgs.map(n => findMatch(n, allOrgs)).filter(Boolean);
+
+  if (matchedCustomers.length > 0) {
+    selectedCustomers = matchedCustomers;
+    restoreTab(savedTab);
+    renderCustomerTags();
+    document.getElementById('stats-row').style.display = 'grid';
+    document.getElementById('bucket-tabs').style.display = 'flex';
+    document.getElementById('sla-panel').style.display = 'block';
+    localStorage.setItem('sup_customers', JSON.stringify(selectedCustomers));
+    updateURL(); loadAllBuckets();
+  } else if (matchedOrgs.length > 0) {
+    selectedOrgs = matchedOrgs;
+    restoreTab(savedTab);
+    renderOrgTags();
+    document.getElementById('stats-row').style.display = 'grid';
+    document.getElementById('bucket-tabs').style.display = 'flex';
+    document.getElementById('sla-panel').style.display = 'block';
+    localStorage.setItem('sup_orgs', JSON.stringify(selectedOrgs));
+    updateURL(); loadAllBuckets();
+  } else if (savedPreset && getPresetQueries()[savedPreset]) { restoreTab(savedTab); loadPreset(savedPreset); }
   else { restoreTab(savedTab); loadDefaultView(); } // No saved state — load default view automatically
 }
 
@@ -1991,8 +2102,8 @@ async function initApp() {
   fetchCurrentUser(); await Promise.all([loadCustomers(), loadOrgs()]);
 
   // Wire search boxes
-  wireSearchBox('customer-search','customer-dropdown-list', allCustomers, selectCustomer);
-  wireSearchBox('org-search','org-dropdown-list', allOrgs, selectOrg);
+  setupCustomerSearch();
+  setupOrgSearch();
 
   applyLang();
   restoreFromState();
@@ -2030,6 +2141,6 @@ init();
   }
 })();
 </script>
-<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0603.2348</div>
+<div id="version-tag"><img src="Engageware_Heart.png" alt="">v1.0607.1554</div>
 </body>
 </html>
